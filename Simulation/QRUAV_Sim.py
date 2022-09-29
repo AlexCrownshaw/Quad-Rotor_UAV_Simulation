@@ -31,9 +31,6 @@ class QRUAVSim:
             json_object = json.load(json_file)
             return json_object["Boundary_Conditions"], json_object["Maneuvers"]
 
-    def compute_time_instance(self) -> None:
-        pass
-
     def compute_moments(self, motor_thrusts: np.array) -> np.array:
         L = np.sum(motor_thrusts * np.array([self.dimensions["d_y"], -self.dimensions["d_y"], -self.dimensions["d_y"],
                                              self.dimensions["d_y"]]))
@@ -43,23 +40,13 @@ class QRUAVSim:
 
         return np.array([L, M, N])
 
-    def calculate_attitude(self) -> np.array:
-        pass
+    def compute_state_derivative(self) -> Tuple[np.array, np.array, np.array, np.array]:
+        linear_body = np.array()
+        rotational_body = np.array()
+        linear_inertial = np.array()
+        rotational_inertial = np.array()
 
-    def calculate_force_vector(self) -> np.array:
-        pass
-
-    def calculate_velocity_vector(self) -> np.array:
-        pass
-
-    def body_to_inertial(self) -> np.array:
-        pass
-
-    def calculate_motion_vector(self) -> np.array:
-        pass
-
-    def calculate_rotor_arm_displacement(self) -> np.array:
-        pass
+        return linear_body, rotational_body, linear_inertial, rotational_inertial
 
     @staticmethod
     def get_rotation_matrix(yaw, pitch, roll, transpose=False) -> np.array:
@@ -77,3 +64,6 @@ class QRUAVSim:
             r = r.transpose()
 
         return r
+
+    def run_simulation(self) -> None:
+        pass
