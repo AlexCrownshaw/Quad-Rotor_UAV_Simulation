@@ -21,4 +21,7 @@ class ControlSystem:
 
     @staticmethod
     def run_control_loop() -> np.array:
-        return np.array()
+
+        motor_thrusts = np.array([])
+
+        return motor_thrusts

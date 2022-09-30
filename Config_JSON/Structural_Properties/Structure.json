@@ -1,9 +1,9 @@
 {
   "properties": {
     "mass": 1,
-    "I_x": 0.1,
-    "I_y": 0.1,
-    "I_z": 0.1
+    "I_xx": 0.1,
+    "I_yy": 0.1,
+    "I_zz": 0.1
     },
 
   "dimensions": {

@@ -1,3 +1,5 @@
+import numpy as np
+
 from FCS.Control_System import ControlSystem
 from Simulation.Dynamics_Model import DynamicsModel
 
@@ -25,11 +27,13 @@ def main():
     control = ControlSystem(gain_x, gain_y, gain_z, gain_yaw, gain_pitch, gain_roll)
 
     # Instantiate dynamics Simulation Object
-    dynamics = DynamicsModel(STRUCTURAL_JSON_PATH, FLIGHT_PATH_JSON_PATH)
+    dynamics = DynamicsModel(t_delta, STRUCTURAL_JSON_PATH, FLIGHT_PATH_JSON_PATH)
 
     # x = Initial conditions
 
-    for t in range(0, t_duration/t_delta, t_delta):
+    t_steps = np.arange(0, t_duration / t_delta + t_delta, t_delta)
+
+    for t in t_steps:
 
         u = control.run_control_loop()
         x = dynamics.rk4(x, u)
