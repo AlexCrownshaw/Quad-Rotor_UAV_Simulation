@@ -1,46 +1,38 @@
-from FCS.PID import PID
-from Simulation.QRUAV_Sim import QRUAVSim
+from FCS.Control_System import ControlSystem
+from Simulation.Dynamics_Model import DynamicsModel
 
-import numpy as np
+# Simulation time variables
+t_duration = 100
+t_delta = 0.001
 
-# Initial Conditions
-INITIAL_POSITION = [0, 0, 0]
+# PID Gain Values [Kp, Ki, Kd]
+gain_x = [1, 1, 1]
+gain_y = [1, 1, 1]
+gain_z = [1, 1, 1]
 
-# Anti-wind up value (Not necessary for simulation)
-OUTPUT_LIMIT_TRANSLATION = 1000
-OUTPUT_LIMIT_ROTATION = 1000
+gain_yaw = [1, 1, 1]
+gain_pitch = [1, 1, 1]
+gain_roll = [1, 1, 1]
 
-# PID Gain Values
-KP_X, KI_X, KD_X = 1, 1, 1
-KP_Y, KI_Y, KD_Y = 1, 1, 1
-KP_Z, KI_Z, KD_Z = 1, 1, 1
-
-KP_ROLL, KI_ROLL, KD_ROLL = 1, 1, 1
-KP_PITCH, KI_PITCH, KD_PITCH = 1, 1, 1
-KP_YAW, KI_YAW, KD_YAW = 1, 1, 1
-
+# Config properties file paths
 STRUCTURAL_JSON_PATH = r"Config_JSON/Structural_Properties/Structure.json"
 FLIGHT_PATH_JSON_PATH = r"Config_JSON/Flight_Plan/Flight_Path.json"
 
 
 def main():
 
-    # Translation PID objects
-    pid_x = PID(KP_X, KI_X, KD_X, OUTPUT_LIMIT_TRANSLATION)
-    pid_y = PID(KP_Y, KI_Y, KD_Y, OUTPUT_LIMIT_TRANSLATION)
-    pid_z = PID(KP_Z, KI_Z, KD_Z, OUTPUT_LIMIT_TRANSLATION)
+    # Instantiate control system object
+    control = ControlSystem(gain_x, gain_y, gain_z, gain_yaw, gain_pitch, gain_roll)
 
-    # Rotational PID objects
-    pid_roll = PID(KP_ROLL, KI_ROLL, KD_ROLL, OUTPUT_LIMIT_ROTATION)
-    pid_pitch = PID(KP_PITCH, KI_PITCH, KD_PITCH, OUTPUT_LIMIT_ROTATION)
-    pid_yaw = PID(KP_YAW, KI_YAW, KD_YAW, OUTPUT_LIMIT_ROTATION)
+    # Instantiate dynamics Simulation Object
+    dynamics = DynamicsModel(STRUCTURAL_JSON_PATH, FLIGHT_PATH_JSON_PATH)
 
-    # Instantiate Quad-rotor Simulation Object
-    sim = QRUAVSim(STRUCTURAL_JSON_PATH, FLIGHT_PATH_JSON_PATH)
-    print(sim)
+    # x = Initial conditions
 
-    moments = sim.calculate_moments(motor_thrusts=np.array([20, 10, 20, 10]))
-    print(moments)
+    for t in range(0, t_duration/t_delta, t_delta):
+
+        u = control.run_control_loop()
+        x = dynamics.rk4(x, u)
 
 
 if __name__ == "__main__":

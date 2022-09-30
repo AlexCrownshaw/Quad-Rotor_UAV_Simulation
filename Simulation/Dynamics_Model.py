@@ -1,10 +1,14 @@
 import json
-from typing import Tuple
 
 import numpy as np
 
+from typing import Tuple
+from Simulation.Time_State import TimeState
 
-class QRUAVSim:
+
+class DynamicsModel:
+
+    g = 9.81  # m/s^2
 
     def __init__(self, structural_json_path, flight_path_json_path):
 
@@ -40,13 +44,29 @@ class QRUAVSim:
 
         return np.array([L, M, N])
 
-    def compute_state_derivative(self) -> Tuple[np.array, np.array, np.array, np.array]:
-        linear_body = np.array()
+    @staticmethod
+    def thrust_vector_body(motor_thrusts) -> np.array:
+        return np.array([0, 0, -np.sum(motor_thrusts)]).reshape(3, 1)
+
+    def gravity_vector_body(self, theta, phi) -> np.array:
+        return np.array([-self.g * np.sin(theta), self.g * np.sin(phi) * np.cos(theta),
+                         self.g * np.cos(phi) * np.cos(theta)]).reshape(3, 1)
+
+    def compute_state_derivative(self, prev: TimeState, motor_thrusts: np.array) -> \
+            Tuple[np.array, np.array, np.array, np.array]:
+
+        force_vector = self.thrust_vector_body(motor_thrusts) + self.gravity_vector_body(prev.theta, prev.phi)
+        V_dot = force_vector - np.array([prev.q * prev.w - prev.r * prev.v, prev.r * prev.u - prev.p * prev.w,
+                                         prev.p * prev.v - prev.q * prev.u]).reshape(3, 1)
+
         rotational_body = np.array()
         linear_inertial = np.array()
         rotational_inertial = np.array()
 
-        return linear_body, rotational_body, linear_inertial, rotational_inertial
+        return V_dot, rotational_body, linear_inertial, rotational_inertial
+
+    def rk4(self) -> TimeStep:
+        pass
 
     @staticmethod
     def get_rotation_matrix(yaw, pitch, roll, transpose=False) -> np.array:
@@ -66,4 +86,5 @@ class QRUAVSim:
         return r
 
     def run_simulation(self) -> None:
-        pass
+        for t in range(0, self.t_duration / self.delta_t, self.delta_t):
+             u = pid
