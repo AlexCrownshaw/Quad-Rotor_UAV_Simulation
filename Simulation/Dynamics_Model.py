@@ -1,5 +1,3 @@
-import json
-
 import numpy as np
 
 from typing import Tuple
@@ -10,31 +8,16 @@ class DynamicsModel:
 
     g = 9.81  # m/s^2
 
-    def __init__(self, t_delta, structural_json_path, flight_path_json_path):
-        self.t_delta = t_delta
-
-        # Load simulation config properties
-        self.properties, self.dimensions = self.load_structural_json(structural_json_path)
-        self.boundary_conditions, self.maneuvers = self.load_flight_path_json(flight_path_json_path)
+    def __init__(self, properties, dimensions):
+        self.properties = properties
+        self.dimensions = dimensions
 
         # Define simulation constants
-        self.moment_inertia_matrix = np.array([self.properties["I_x"], 0, 0, 0, self.properties["I_y"], 0, 0, 0,
-                                               self.properties["I_z"]]).reshape(3, 3)
+        # self.moment_inertia_matrix = np.array([self.properties["I_xx"], 0, 0, 0, self.properties["I_yy"], 0, 0, 0,
+        #                                        self.properties["I_zz"]]).reshape(3, 3)
         self.gravity_vector_inertial = np.array([0, 0, self.properties["mass"] * 9.81]).reshape(3, 1)
 
         print(self)
-
-    @staticmethod
-    def load_structural_json(json_path: str) -> Tuple[dict, dict]:
-        with open(json_path) as json_file:
-            json_object = json.load(json_file)
-            return json_object["properties"], json_object["dimensions"]
-
-    @staticmethod
-    def load_flight_path_json(json_path: str) -> Tuple[dict, dict]:
-        with open(json_path) as json_file:
-            json_object = json.load(json_file)
-            return json_object["Boundary_Conditions"], json_object["Maneuvers"]
 
     def compute_moments(self, motor_thrusts: np.array) -> Tuple[float, float, float]:
         L = float(np.sum(motor_thrusts * np.array([self.dimensions["d_y"], -self.dimensions["d_y"],
@@ -53,51 +36,64 @@ class DynamicsModel:
         return np.array([-self.g * np.sin(theta), self.g * np.sin(phi) * np.cos(theta),
                          self.g * np.cos(phi) * np.cos(theta)]).reshape(3, 1)
 
-    def compute_state_derivative(self, X: TimeState, U) -> StateDerivative:
+    def compute_state_derivative(self, X: np.array, U: np.array) -> Tuple[np.array, StateDerivative]:
+
+        # Apply suitable variable names
+        u, v, w = X[0], X[1], X[2]
+        p, q, r = X[3], X[4], X[5]
+        psi, theta, phi = X[9], X[10], X[11]
 
         # Pre-calculate trigonometric terms
-        cos_phi = np.cos(X.phi)
-        sin_phi = np.sin(X.phi)
-        cos_theta = np.cos(X.theta)
-        sin_theta = np.sin(X.theta)
-        cos_psi = np.cos(X.psi)
-        sin_psi = np.sin(X.psi)
+        cos_phi, sin_phi = np.cos(phi), np.sin(phi)
+        cos_theta, sin_theta = np.cos(theta), np.sin(theta)
+        cos_psi, sin_psi = np.cos(psi), np.sin(psi)
 
         # Forces sum up in the body z-axis
-        F_z = -np.sum(U.thrusts)
+        F_z = -np.sum(U)
 
         # Compute Moments
-        L, M, N = self.compute_moments(U.thrusts)
+        L, M, N = self.compute_moments(U)
 
         # Define state derivative object
-        sd = StateDerivative()
+        X_dot = np.zeros(12)
 
         # Compute linear body acceleration
-        sd.u_dot = -self.g * sin_theta + X.r * X.v - X.q * X.w
-        sd.v_dot = self.g * sin_phi * cos_theta - X.r * X.u + X.p * X.w
-        sd.w_dot = 1 / self.properties["mass"] * F_z + self.g * cos_phi * cos_theta + X.q * X.u - X.p * X.v
+        X_dot[0] = -self.g * sin_theta + r * v - q * w  # u_dot
+        X_dot[1] = self.g * sin_phi * cos_theta - r * u + p * w  # v_dot
+        X_dot[2] = 1 / self.properties["mass"] * F_z + self.g * cos_phi * cos_theta + q * u - p * v  # w_dot
 
         # Compute rotational body acceleration
-        sd.p_dot = 1 / self.properties["I_xx"] * (L + (self.properties["I_yy"] - self.properties["I_zz"]) * X.q * X.r)
-        sd.q_dot = 1 / self.properties["I_yy"] * (M + (self.properties["I_zz"] - self.properties["I_xx"]) * X.p * X.r)
-        sd.r_dot = 1 / self.properties["I_zz"] * (N + (self.properties["I_xx"] - self.properties["I_yy"]) * X.p * X.q)
+        X_dot[3] = 1 / self.properties["I_xx"] * (L + (self.properties["I_yy"] - self.properties["I_zz"]) * q * r)  # p_dot
+        X_dot[4] = 1 / self.properties["I_yy"] * (M + (self.properties["I_zz"] - self.properties["I_xx"]) * p * r)  # q_dot
+        X_dot[5] = 1 / self.properties["I_zz"] * (N + (self.properties["I_xx"] - self.properties["I_yy"]) * p * q)  # r_dot
 
         # Compute linear inertial acceleration
-        sd.x_dot = cos_theta * cos_psi * X.u + (-cos_phi * sin_psi + sin_phi * sin_theta * cos_psi) * X.v + \
-                   (sin_phi * sin_psi + cos_phi * sin_theta * cos_psi) * X.w
-        sd.y_dot = cos_theta * sin_psi * X.u + (cos_phi * cos_psi + sin_phi * sin_theta * sin_psi) * X.v + \
-                   (-sin_phi * cos_psi + cos_phi * sin_theta * sin_psi) * X.w
-        sd.z_dot = -1 * (-sin_theta * X.u + sin_phi * cos_theta * X.v + cos_phi * cos_theta * X.w)
+        X_dot[6] = cos_theta * cos_psi * u + (-cos_phi * sin_psi + sin_phi * sin_theta * cos_psi) * v + \
+                   (sin_phi * sin_psi + cos_phi * sin_theta * cos_psi) * w  # x_dot
+        X_dot[7] = cos_theta * sin_psi * u + (cos_phi * cos_psi + sin_phi * sin_theta * sin_psi) * v + \
+                   (-sin_phi * cos_psi + cos_phi * sin_theta * sin_psi) * w  # y_dot
+        X_dot[8] = -1 * (-sin_theta * u + sin_phi * cos_theta * v + cos_phi * cos_theta * w)  # z_dot
 
         # Compute rotational inertial acceleration
-        sd.psi_dot = (X.q * sin_phi + X.r * cos_phi) / cos_theta
-        sd.theta_dot = X.q * cos_phi - X.r * sin_phi
-        sd.phi_dot = X.p + (X.q * sin_phi + X.r * cos_phi) * sin_theta / cos_theta
+        X_dot[9] = (q * sin_phi + r * cos_phi) / cos_theta  # psi_dot
+        X_dot[10] = q * cos_phi - r * sin_phi  # theta_dot
+        X_dot[11] = p + (q * sin_phi + r * cos_phi) * sin_theta / cos_theta  # phi_dot
 
-        return sd
+        # Create StateDerivative object using state derivative vector
+        sd = StateDerivative(X_dot)
 
-    def rk4(self) -> TimeState:
-        pass
+        return X_dot, sd
+
+    def rk4(self, X: TimeState, U: np.array, dt: float) -> TimeState:
+
+        k1, sd_1 = self.compute_state_derivative(X.state_vector, U)
+        k2, sd_2 = self.compute_state_derivative(X.state_vector + k1 * dt / 2, U)
+        k3, sd_3 = self.compute_state_derivative(X.state_vector + k2 * dt / 2, U)
+        k4, sd_4 = self.compute_state_derivative(X.state_vector + k3 * dt, U)
+
+        X_calc = X.state_vector + 1/6 * (k1 + 2*k2 + 2*k3 + k4) * dt
+
+        return TimeState(X_calc)
 
     @staticmethod
     def get_rotation_matrix(yaw, pitch, roll, transpose=False) -> np.array:
