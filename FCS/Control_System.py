@@ -1,3 +1,5 @@
+import sys
+
 import numpy as np
 
 from FCS.PID import PID
@@ -10,6 +12,8 @@ class ControlSystem:
 
     def __init__(self, maneuvers, gain_x, gain_y, gain_z, gain_yaw, gain_pitch, gain_roll) -> None:
 
+        self.maneuvers = maneuvers
+
         # Translation PID objects
         self.pid_x = PID(gain_x[0], gain_x[1], gain_x[2], self.motor_limit)
         self.pid_y = PID(gain_y[0], gain_y[1], gain_y[2], self.motor_limit)
@@ -21,15 +25,35 @@ class ControlSystem:
         self.pid_yaw = PID(gain_roll[0], gain_roll[1], gain_roll[2], self.motor_limit)
 
     @staticmethod
-    def run_control_loop(X: TimeState) -> np.array:
-        motor_thrusts = np.array([0.1, 0.1, 0.1, 0.1])
+    def motor_mixing(output_vector: np.array) -> np.array:
+        return np.array([1, 1, 1, 1,
+                         1, 1, -1, -1,
+                         1, -1, 1, -1,
+                         1, -1, -1, 1]).reshape(4, 4).dot(output_vector)
 
-        if X.x < 2:
-            motor_thrusts[0], motor_thrusts[2] = 0.1001, 0.1001
-            motor_thrusts[1], motor_thrusts[3] = 0.1, 0.1
-        else:
-            motor_thrusts[0], motor_thrusts[2] = 0.1, 0.1
-            motor_thrusts[1], motor_thrusts[3] = 0.1001, 0.1001
+    def run_control_loop(self, X: TimeState, t: float) -> np.array:
+        control_inputs = self.control_inputs(t)
 
-        return motor_thrusts * 10
+        output_x = self.pid_x.compute_pid(X.x, control_inputs[0])
+        output_pitch = self.pid_pitch.compute_pid(X.theta, output_x)
 
+        output_y = self.pid_y.compute_pid(X.y, control_inputs[1])
+        output_roll = self.pid_roll.compute_pid(X.phi, output_y)
+
+        output_z = self.pid_z.compute_pid(X.z, control_inputs[2])
+
+        output_yaw = self.pid_yaw.compute_pid(X.psi, control_inputs[3])
+
+        U = self.motor_mixing(np.array([output_z, output_yaw, output_pitch, output_roll]))
+
+        return U
+
+    def control_inputs(self, t) -> np.array:
+        for maneuver in self.maneuvers:
+            if float(maneuver["time"]) <= t:
+                return np.array([maneuver["x"], maneuver["y"], maneuver["z"], maneuver["yaw"]])
+            elif t < self.maneuvers[0]["time"]:
+                return np.array([0, 0, 0, 0])
+            else:
+                print("ERROR: No valid control input from Flight_Path for t > {}s".format(t))
+                sys.exit()
