@@ -46,7 +46,7 @@ def main():
     for t in np.arange(0, t_duration + t_delta, t_delta):
         t = round(t, 4)
 
-        U = control.run_control_loop(X)
+        U = control.run_control_loop(X, t)
         X = dynamics.rk4(X, U, t_delta)
 
         sim_data.append_time_instance(t, X, U)
