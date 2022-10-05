@@ -1,3 +1,6 @@
+import os
+import time
+
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -81,13 +84,20 @@ class ControlData:
         self.df["output_roll"] = self.control_data_list[5]["output"]
 
 
-class Plotter:
+class DataProcessor:
 
-    def __init__(self, dynamics: DynamicsData, control: ControlData):
+    def __init__(self, dynamics: DynamicsData, control: ControlData, save_path: str):
         self.dynamics = dynamics.df
         self.control = control.df
 
-    def plot_position(self, show=True):
+        self.save_path = os.path.join(save_path, str(time.strftime("%d-%m-%y %H-%M-%S")))
+        os.mkdir(self.save_path)
+        self.dynamics.to_csv(os.path.join(self.save_path, "Dynamics_Data.csv"))
+        self.control.to_csv(os.path.join(self.save_path, "Control_Data.csv"))
+        self.save_path = os.path.join(self.save_path, "Plots")
+        os.mkdir(self.save_path)
+
+    def plot_position(self, show=True, save=False):
         fig, axes = plt.subplots(3, 1, figsize=(10, 8))
 
         axes[0].plot(self.dynamics["t"], self.dynamics["x"])
@@ -100,10 +110,13 @@ class Plotter:
         plt.setp(axes[2], ylabel="z [m]")
 
         plt.xlabel("Time [s]")
+
+        if save:
+            self.save_plot("Position")
         if show:
             plt.show()
 
-    def plot_attitude(self, show=True):
+    def plot_attitude(self, show=True, save=False):
         fig, axes = plt.subplots(3, 1, figsize=(10, 8))
 
         axes[0].plot(self.dynamics["t"], self.dynamics["psi_[deg]"])
@@ -117,38 +130,55 @@ class Plotter:
 
         plt.xlabel("Time [s]")
 
+        if save:
+            self.save_plot("Attitude")
         if show:
             plt.show()
 
-    def plot_inertial(self, show=True):
-        fig, axes = plt.subplots(3, 2, figsize=(15, 8))
+    def plot_inertial(self, show=True, save=False):
+        fig, axes = plt.subplots(3, 2, figsize=(15, 10))
 
         axes[0, 0].plot(self.dynamics["t"], self.dynamics["x"])
+        plt.setp(axes[0, 0], title="Position_x")
         plt.setp(axes[0, 0], ylabel="x [m]")
 
         axes[1, 0].plot(self.dynamics["t"], self.dynamics["y"])
+        plt.setp(axes[1, 0], title="Position_y")
         plt.setp(axes[1, 0], ylabel="y [m]")
 
         axes[2, 0].plot(self.dynamics["t"], self.dynamics["z"])
+        plt.setp(axes[2, 0], title="Position_z")
         plt.setp(axes[2, 0], ylabel="z [m]")
 
+        axes[2, 1].plot(self.dynamics["t"], self.dynamics["psi_[deg]"])
+        plt.setp(axes[0, 1], title="Yaw")
+        plt.setp(axes[0, 1], ylabel="yaw [degrees]")
+
         axes[0, 1].plot(self.dynamics["t"], self.dynamics["theta_[deg]"])
-        plt.setp(axes[0, 1], ylabel="pitch [degrees]")
+        plt.setp(axes[1, 1], title="Pitch")
+        plt.setp(axes[1, 1], ylabel="pitch [degrees]")
 
         axes[1, 1].plot(self.dynamics["t"], self.dynamics["phi_[deg]"])
-        plt.setp(axes[1, 1], ylabel="roll [degrees]")
-
-        axes[2, 1].plot(self.dynamics["t"], self.dynamics["psi_[deg]"])
-        plt.setp(axes[2, 1], ylabel="yaw [degrees]")
+        plt.setp(axes[2, 1], title="Roll")
+        plt.setp(axes[2, 1], ylabel="roll [degrees]")
 
         plt.xlabel("Time [s]")
 
+        if save:
+            self.save_plot("Inertial Position and Attitude")
         if show:
             plt.show()
 
-    def plot_3d(self):
+    def plot_3d(self, show=True, save=True):
         ax = plt.axes(projection='3d')
         ax.plot3D(self.dynamics.x, self.dynamics.y, self.dynamics.z)
         plt.xlabel("x [m]")
         plt.ylabel("y [m]")
-        plt.show()
+
+        if save:
+            self.save_plot("3D Flight Path")
+        if show:
+            plt.show()
+
+    def save_plot(self, file_name: str) -> None:
+        plt.savefig(os.path.join(self.save_path, "{}.png".format(file_name)), bbox_inches="tight")
