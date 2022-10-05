@@ -120,13 +120,13 @@ class DataProcessor:
         fig, axes = plt.subplots(3, 1, figsize=(10, 8))
 
         axes[0].plot(self.dynamics["t"], self.dynamics["psi_[deg]"])
-        plt.setp(axes[0], ylabel="yaw [degrees]")
+        plt.setp(axes[0], ylabel="yaw [deg]")
 
         axes[1].plot(self.dynamics["t"], self.dynamics["theta_[deg]"])
-        plt.setp(axes[1], ylabel="pitch [degrees]")
+        plt.setp(axes[1], ylabel="pitch [deg]")
 
         axes[2].plot(self.dynamics["t"], self.dynamics["phi_[deg]"])
-        plt.setp(axes[2], ylabel="roll [degrees]")
+        plt.setp(axes[2], ylabel="roll [deg]")
 
         plt.xlabel("Time [s]")
 
@@ -152,15 +152,15 @@ class DataProcessor:
 
         axes[2, 1].plot(self.dynamics["t"], self.dynamics["psi_[deg]"])
         plt.setp(axes[0, 1], title="Yaw")
-        plt.setp(axes[0, 1], ylabel="yaw [degrees]")
+        plt.setp(axes[0, 1], ylabel="yaw [deg]")
 
         axes[0, 1].plot(self.dynamics["t"], self.dynamics["theta_[deg]"])
         plt.setp(axes[1, 1], title="Pitch")
-        plt.setp(axes[1, 1], ylabel="pitch [degrees]")
+        plt.setp(axes[1, 1], ylabel="pitch [deg]")
 
         axes[1, 1].plot(self.dynamics["t"], self.dynamics["phi_[deg]"])
         plt.setp(axes[2, 1], title="Roll")
-        plt.setp(axes[2, 1], ylabel="roll [degrees]")
+        plt.setp(axes[2, 1], ylabel="roll [deg]")
 
         plt.xlabel("Time [s]")
 

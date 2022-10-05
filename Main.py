@@ -11,7 +11,7 @@ from Simulation.Time_State import TimeState
 from Data_Processing.Data_Processing import DynamicsData, ControlData, DataProcessor
 
 # Simulation time variables
-t_duration = 10
+t_duration = 30
 t_delta = 0.01
 
 # PID Gain Values [Kp, Ki, Kd]
