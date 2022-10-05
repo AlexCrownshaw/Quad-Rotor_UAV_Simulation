@@ -6,16 +6,16 @@ from typing import Tuple
 from FCS.Control_System import ControlSystem
 from Simulation.Dynamics_Model import DynamicsModel
 from Simulation.Time_State import TimeState
-from Data_Processing.Data_Processing import DataProcessing
+from Data_Processing.Data_Processing import DynamicsData, ControlData, Plotter
 
 # Simulation time variables
-t_duration = 30
-t_delta = 0.02
+t_duration = 10
+t_delta = 0.01
 
 # PID Gain Values [Kp, Ki, Kd]
 gain_x = [1, 1, 1]
 gain_y = [1, 1, 1]
-gain_z = [1, 1, 1]
+gain_z = [0.5, 0.01, 0.3]
 
 gain_yaw = [1, 1, 1]
 gain_pitch = [1, 1, 1]
@@ -32,7 +32,7 @@ def main():
     IC, maneuvers = load_flight_path_json(FLIGHT_PATH_JSON_PATH)
 
     # Instantiate control system object
-    control = ControlSystem(maneuvers, gain_x, gain_y, gain_z, gain_yaw, gain_pitch, gain_roll)
+    control = ControlSystem(t_delta, maneuvers, gain_x, gain_y, gain_z, gain_yaw, gain_pitch, gain_roll)
 
     # Instantiate dynamics Simulation Object
     dynamics = DynamicsModel(properties, dimensions)
@@ -41,23 +41,25 @@ def main():
     state_vector = np.array([0, 0, 0, 0, 0, 0, IC["x"], IC["y"], IC["z"], 0, 0, 0])
     X = TimeState(state_vector)
 
-    sim_data = DataProcessing()
+    # Initialise data collection objects
+    dynamics_data = DynamicsData()
+    dynamics_data.append_time_instance(t=0, X=X, U=np.array([0, 0, 0, 0]))
 
-    for t in np.arange(0, t_duration + t_delta, t_delta):
+    for t in np.arange(t_delta, t_duration + t_delta, t_delta):
         t = round(t, 4)
 
         U = control.run_control_loop(X, t)
         X = dynamics.rk4(X, U, t_delta)
 
-        sim_data.append_time_instance(t, X, U)
+        dynamics_data.append_time_instance(t, X, U)
 
         print("Calculation Complete for t = {}s".format(t))
 
-    # sim_data.plot_position()
-    # sim_data.plot_attitude()
+    control_data = ControlData(control.return_pid_data())
 
-    sim_data.plot_inertial()
-    sim_data.plot_3d()
+    plot = Plotter(dynamics_data, control_data)
+    plot.plot_inertial()
+    # dynamics_data.plot_3d()
 
 
 def load_structural_json(json_path: str) -> Tuple[dict, dict]:
