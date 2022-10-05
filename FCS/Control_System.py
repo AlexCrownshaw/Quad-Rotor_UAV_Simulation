@@ -9,10 +9,12 @@ from Simulation.Time_State import TimeState
 class ControlSystem:
 
     motor_limit = 10000
+    current_inputs = np.zeros(4)
 
     def __init__(self, dt, maneuvers, gain_x, gain_y, gain_z, gain_yaw, gain_pitch, gain_roll) -> None:
 
         self.maneuvers = maneuvers
+        self.upcoming_maneuvers = maneuvers
 
         # Translation PID objects
         self.pid_x = PID(dt, gain_x[0], gain_x[1], gain_x[2], self.motor_limit)
@@ -49,14 +51,16 @@ class ControlSystem:
         return U
 
     def control_inputs(self, t) -> np.array:
-        for maneuver in self.maneuvers:
+        if len(self.upcoming_maneuvers) == 0:
+            return self.current_inputs
+        for maneuver in self.upcoming_maneuvers:
             if float(maneuver["time"]) <= t:
-                return np.array([maneuver["x"], maneuver["y"], maneuver["z"], maneuver["yaw"]])
+                self.upcoming_maneuvers = self.upcoming_maneuvers[1:]
+                self.current_inputs = np.array([maneuver["x"], maneuver["y"], maneuver["z"], maneuver["yaw"]])
             elif t < self.maneuvers[0]["time"]:
                 return np.array([0, 0, 0, 0])
-            else:
-                print("ERROR: No valid control input from Flight_Path for t > {}s".format(t))
-                sys.exit()
+
+            return self.current_inputs
 
     def return_pid_data(self) -> list:
         pid_data_list = []
