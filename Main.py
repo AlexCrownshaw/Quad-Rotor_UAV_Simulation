@@ -1,12 +1,14 @@
 import json
+import os.path
 
 import numpy as np
 
 from typing import Tuple
+from General.UsefulFunctions import get_parent_path
 from FCS.Control_System import ControlSystem
 from Simulation.Dynamics_Model import DynamicsModel
 from Simulation.Time_State import TimeState
-from Data_Processing.Data_Processing import DynamicsData, ControlData, Plotter
+from Data_Processing.Data_Processing import DynamicsData, ControlData, DataProcessor
 
 # Simulation time variables
 t_duration = 10
@@ -24,6 +26,9 @@ gain_roll = [1, 1, 1]
 # Config properties file paths
 STRUCTURAL_JSON_PATH = r"Config_JSON/Structural_Properties/Structure.json"
 FLIGHT_PATH_JSON_PATH = r"Config_JSON/Flight_Plan/Flight_Path.json"
+
+# Data save path
+SAVE_PATH = os.path.join(get_parent_path(os.path.abspath(__file__)), "Data")
 
 
 def main():
@@ -57,8 +62,9 @@ def main():
 
     control_data = ControlData(control.return_pid_data())
 
-    plot = Plotter(dynamics_data, control_data)
-    plot.plot_inertial()
+    dp = DataProcessor(dynamics_data, control_data, SAVE_PATH)
+    dp.plot_inertial(save=True)
+
     # dynamics_data.plot_3d()
 
 
