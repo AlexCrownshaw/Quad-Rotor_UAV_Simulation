@@ -14,12 +14,12 @@ class DynamicsData:
     def __init__(self):
         self.df = pd.DataFrame(columns=["t", "x", "y", "z", "psi_[rad]", "theta_[rad]", "phi_[rad]", "psi_[deg]",
                                         "theta_[deg]", "phi_[deg]", "u", "v", "w", "p", "q", "r",
-                                        "F1", "F2", "F3", "F4"])
+                                        "F1", "F2", "F3", "F4", "omega_1", "omega_2", "omega_3", "omega_4"])
 
-    def append_time_instance(self, t: float, X: TimeState, U: np.array):
+    def append_time_instance(self, t: float, X: TimeState, T: np.array, U: np.array):
         self.df.loc[len(self.df)] = [t, X.x, X.y, X.z, X.psi, X.theta, X.phi,
                                      np.degrees(X.psi), np.degrees(X.theta), np.degrees(X.phi),
-                                     X.u, X.v, X.w, X.p, X.q, X.r, U[0], U[1], U[2], U[3]]
+                                     X.u, X.v, X.w, X.p, X.q, X.r, T[0], T[1], T[2], T[3], U[0], U[1], U[2], U[3]]
 
     def plot_variable(self, variable: str, show=False):
         plt.plot(self.df["t"], self.df[variable])
@@ -148,7 +148,7 @@ class DataProcessor:
 
         axes[2, 0].plot(self.dynamics["t"], self.dynamics["z"])
         plt.setp(axes[2, 0], title="Position_z")
-        plt.setp(axes[2, 0], ylabel="z [m]")
+        plt.setp(axes[2, 0], ylabel="h [m]")
 
         axes[2, 1].plot(self.dynamics["t"], self.dynamics["psi_[deg]"])
         plt.setp(axes[0, 1], title="Yaw")
@@ -177,6 +177,30 @@ class DataProcessor:
 
         if save:
             self.save_plot("3D Flight Path")
+        if show:
+            plt.show()
+
+    def plot_thrust(self, show=True, save=True):
+        _, ax1 = plt.subplots(figsize=(12, 8))
+        plt.title("Motor Thrust and RPM")
+        plt.xlabel("Time [s]")
+        ax1.plot(self.dynamics.t, self.dynamics.F1, label="F1")
+        ax1.plot(self.dynamics.t, self.dynamics.F2, label="F2")
+        ax1.plot(self.dynamics.t, self.dynamics.F3, label="F3")
+        ax1.plot(self.dynamics.t, self.dynamics.F4, label="F4")
+        ax1.set_ylabel("Thrust [N]")
+        ax1.legend()
+
+        ax2 = ax1.twinx()
+        ax2.plot(self.dynamics.t, self.dynamics.omega_1, label="omega_1", linestyle="--")
+        ax2.plot(self.dynamics.t, self.dynamics.omega_2, label="omega_2", linestyle="--")
+        ax2.plot(self.dynamics.t, self.dynamics.omega_3, label="omega_3", linestyle="--")
+        ax2.plot(self.dynamics.t, self.dynamics.omega_4, label="omega_4", linestyle="--")
+        ax2.set_ylabel("Motor Speed [RPM]")
+        ax2.legend()
+
+        if save:
+            self.save_plot("Motor Thrusts")
         if show:
             plt.show()
 
