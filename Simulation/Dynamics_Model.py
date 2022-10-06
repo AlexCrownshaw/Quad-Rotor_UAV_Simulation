@@ -18,11 +18,11 @@ class DynamicsModel:
 
         print(self)
 
-    def compute_moments(self, motor_thrusts: np.array) -> Tuple[float, float, float]:
-        L = float(np.sum(motor_thrusts * np.array([self.dimensions["d_y"], -self.dimensions["d_y"],
-                                                   -self.dimensions["d_y"], self.dimensions["d_y"]])))
-        M = float(np.sum(motor_thrusts * np.array([self.dimensions["d_x"], -self.dimensions["d_x"],
-                                                   self.dimensions["d_x"], -self.dimensions["d_x"]])))
+    def compute_moments(self, T: np.array) -> Tuple[float, float, float]:
+        L = float(np.sum(T * np.array([self.dimensions["d_y"], -self.dimensions["d_y"],
+                                       -self.dimensions["d_y"], self.dimensions["d_y"]])))
+        M = float(np.sum(T * np.array([self.dimensions["d_x"], -self.dimensions["d_x"],
+                                       self.dimensions["d_x"], -self.dimensions["d_x"]])))
         N = float(np.sum(np.array([0, 0, 0])))
 
         return L, M, N
@@ -35,7 +35,10 @@ class DynamicsModel:
         return np.array([-self.g * np.sin(theta), self.g * np.sin(phi) * np.cos(theta),
                          self.g * np.cos(phi) * np.cos(theta)]).reshape(3, 1)
 
-    def compute_state_derivative(self, X: np.array, U: np.array) -> Tuple[np.array, StateDerivative]:
+    def compute_motor_thrusts(self, motor_speeds: np.array) -> np.array:
+        pass
+
+    def compute_state_derivative(self, X: np.array, T: np.array) -> Tuple[np.array, StateDerivative]:
         # Apply suitable variable names
         u, v, w = X[0], X[1], X[2]
         p, q, r = X[3], X[4], X[5]
@@ -47,10 +50,10 @@ class DynamicsModel:
         cos_psi, sin_psi = np.cos(psi), np.sin(psi)
 
         # Forces sum up in the body z-axis
-        F_z = -np.sum(U)
+        F_z = -np.sum(T)
 
         # Compute Moments
-        L, M, N = self.compute_moments(U)
+        L, M, N = self.compute_moments(T)
 
         # Define state derivative object
         X_dot = np.zeros(12)
@@ -62,11 +65,11 @@ class DynamicsModel:
 
         # Compute rotational body acceleration
         X_dot[3] = 1 / self.properties["I_xx"] * (
-                    L + (self.properties["I_yy"] - self.properties["I_zz"]) * q * r)  # p_dot
+                L + (self.properties["I_yy"] - self.properties["I_zz"]) * q * r)  # p_dot
         X_dot[4] = 1 / self.properties["I_yy"] * (
-                    M + (self.properties["I_zz"] - self.properties["I_xx"]) * p * r)  # q_dot
+                M + (self.properties["I_zz"] - self.properties["I_xx"]) * p * r)  # q_dot
         X_dot[5] = 1 / self.properties["I_zz"] * (
-                    N + (self.properties["I_xx"] - self.properties["I_yy"]) * p * q)  # r_dot
+                N + (self.properties["I_xx"] - self.properties["I_yy"]) * p * q)  # r_dot
 
         # Compute linear inertial acceleration
         X_dot[6] = cos_theta * cos_psi * u + (-cos_phi * sin_psi + sin_phi * sin_theta * cos_psi) * v + \
@@ -85,11 +88,11 @@ class DynamicsModel:
 
         return X_dot, sd
 
-    def rk4(self, X: TimeState, U: np.array, dt: float) -> TimeState:
-        k1, sd_1 = self.compute_state_derivative(X.state_vector, U)
-        k2, sd_2 = self.compute_state_derivative(X.state_vector + k1 * dt / 2, U)
-        k3, sd_3 = self.compute_state_derivative(X.state_vector + k2 * dt / 2, U)
-        k4, sd_4 = self.compute_state_derivative(X.state_vector + k3 * dt, U)
+    def rk4(self, X: TimeState, T: np.array, dt: float) -> TimeState:
+        k1, sd_1 = self.compute_state_derivative(X.state_vector, T)
+        k2, sd_2 = self.compute_state_derivative(X.state_vector + k1 * dt / 2, T)
+        k3, sd_3 = self.compute_state_derivative(X.state_vector + k2 * dt / 2, T)
+        k4, sd_4 = self.compute_state_derivative(X.state_vector + k3 * dt, T)
 
         X_calc = X.state_vector + 1 / 6 * (k1 + 2 * k2 + 2 * k3 + k4) * dt
 

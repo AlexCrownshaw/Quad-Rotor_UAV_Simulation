@@ -1,5 +1,3 @@
-import sys
-
 import numpy as np
 
 from FCS.PID import PID
@@ -8,7 +6,8 @@ from Simulation.Time_State import TimeState
 
 class ControlSystem:
 
-    motor_limit = 10000
+    max_rpm = 6000
+    motor_limit = 1000000000
     current_inputs = np.zeros(4)
 
     def __init__(self, dt, maneuvers, gain_x, gain_y, gain_z, gain_yaw, gain_pitch, gain_roll) -> None:
@@ -47,6 +46,13 @@ class ControlSystem:
         output_yaw = self.pid_yaw.compute_pid(X.psi, control_inputs[3])
 
         U = self.motor_mixing(np.array([output_z, output_yaw, output_pitch, output_roll]))
+
+        # Fix motor speed to defined RPM bounds
+        for U_index in range(len(U)):
+            if U[U_index] > self.max_rpm:
+                U[U_index] = self.max_rpm
+            elif U[U_index] < 0:
+                U[U_index] = 0
 
         return U
 
