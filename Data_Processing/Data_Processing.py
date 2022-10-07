@@ -47,28 +47,28 @@ class ControlData:
         self.df["setpoint_y"] = self.control_data_list[1]["setpoint"]
         self.df["setpoint_z"] = self.control_data_list[2]["setpoint"]
         self.df["setpoint_yaw"] = self.control_data_list[3]["setpoint"]
-        
+
         self.df["input_x"] = self.control_data_list[0]["state_input"]
         self.df["input_y"] = self.control_data_list[1]["state_input"]
         self.df["input_z"] = self.control_data_list[2]["state_input"]
         self.df["input_yaw"] = self.control_data_list[3]["state_input"]
         self.df["input_pitch"] = self.control_data_list[4]["state_input"]
         self.df["input_roll"] = self.control_data_list[5]["state_input"]
-        
+
         self.df["error_x"] = self.control_data_list[0]["error"]
         self.df["error_y"] = self.control_data_list[1]["error"]
         self.df["error_z"] = self.control_data_list[2]["error"]
         self.df["error_yaw"] = self.control_data_list[3]["error"]
         self.df["error_pitch"] = self.control_data_list[4]["error"]
         self.df["error_roll"] = self.control_data_list[5]["error"]
-        
+
         self.df["error_sum_x"] = self.control_data_list[0]["error_sum"]
         self.df["error_sum_y"] = self.control_data_list[1]["error_sum"]
         self.df["error_sum_z"] = self.control_data_list[2]["error_sum"]
         self.df["error_sum_yaw"] = self.control_data_list[3]["error_sum"]
         self.df["error_sum_pitch"] = self.control_data_list[4]["error_sum"]
         self.df["error_sum_roll"] = self.control_data_list[5]["error_sum"]
-        
+
         self.df["d_error_x"] = self.control_data_list[0]["d_error"]
         self.df["d_error_y"] = self.control_data_list[1]["d_error"]
         self.df["d_error_z"] = self.control_data_list[2]["d_error"]
@@ -84,16 +84,37 @@ class ControlData:
         self.df["output_roll"] = self.control_data_list[5]["output"]
 
 
+class ThrustData:
+    column_headers = ["time", "u_p", "v_p", "w_p", "v_i", "V_prime", "T"]
+
+    def __init__(self):
+        self.motor_data = [pd.DataFrame(columns=self.column_headers),
+                           pd.DataFrame(columns=self.column_headers),
+                           pd.DataFrame(columns=self.column_headers),
+                           pd.DataFrame(columns=self.column_headers)]
+
+    def append_thrust_data(self, motor_index, t, V, v_i, V_prime, T) -> None:
+        self.motor_data[motor_index].loc[len(self.motor_data[motor_index])] = [t, float(V[0]), float(V[1]), float(V[2]),
+                                                                               v_i, V_prime, float(T)]
+
+
 class DataProcessor:
 
-    def __init__(self, dynamics: DynamicsData, control: ControlData, save_path: str):
+    def __init__(self, dynamics: DynamicsData, control: ControlData, thrust_data: list, save_path: str):
         self.dynamics = dynamics.df
         self.control = control.df
+        self.thrust_data = thrust_data.motor_data
 
         self.save_path = os.path.join(save_path, str(time.strftime("%d-%m-%y %H-%M-%S")))
         os.mkdir(self.save_path)
         self.dynamics.to_csv(os.path.join(self.save_path, "Dynamics_Data.csv"))
         self.control.to_csv(os.path.join(self.save_path, "Control_Data.csv"))
+
+        motor_data_save_path = os.path.join(self.save_path, "Motor Thrust Data")
+        os.mkdir(motor_data_save_path)
+        for motor_index in range(len(self.thrust_data)):
+            self.thrust_data[motor_index].to_csv(os.path.join(motor_data_save_path, "Motor {}.csv".format(motor_index)))
+
         self.save_path = os.path.join(self.save_path, "Plots")
         os.mkdir(self.save_path)
 
