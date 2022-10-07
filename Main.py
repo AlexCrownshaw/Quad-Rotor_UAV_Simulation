@@ -12,7 +12,7 @@ from Simulation.Time_State import TimeState
 from Data_Processing.Data_Processing import DynamicsData, ControlData, DataProcessor
 
 # Simulation time variables
-t_duration = 15
+t_duration = 5
 t_delta = 0.01
 
 # PID Gain Values [Kp, Ki, Kd]
@@ -38,7 +38,7 @@ def main():
     IC, maneuvers = load_flight_path_json(FLIGHT_PATH_JSON_PATH)
 
     # Instantiate simulation objects
-    thrust = ThrustModel(motor, propeller, dimensions)
+    thrust = ThrustModel(t_delta, motor, propeller, dimensions)
     control = ControlSystem(t_delta, maneuvers, gain_x, gain_y, gain_z, gain_yaw, gain_pitch, gain_roll)
     dynamics = DynamicsModel(properties, dimensions)
 
@@ -62,8 +62,9 @@ def main():
         print("Calculation Complete for t = {}s".format(t))
 
     control_data = ControlData(control.return_pid_data())
+    thrust_data = thrust.return_thrust_data()
 
-    dp = DataProcessor(dynamics_data, control_data, SAVE_PATH)
+    dp = DataProcessor(dynamics_data, control_data, thrust_data, SAVE_PATH)
     dp.plot_inertial(save=True)
     dp.plot_thrust(save=True)
     dp.plot_3d(save=True)
