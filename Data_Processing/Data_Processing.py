@@ -93,6 +93,9 @@ class ThrustData:
                            pd.DataFrame(columns=self.column_headers),
                            pd.DataFrame(columns=self.column_headers)]
 
+        for motor_index in range(len(self.motor_data)):
+            self.append_thrust_data(motor_index, 0, np.zeros(3), 0, 0, 0)
+
     def append_thrust_data(self, motor_index, t, V, v_i, V_prime, T) -> None:
         self.motor_data[motor_index].loc[len(self.motor_data[motor_index])] = [t, float(V[0]), float(V[1]), float(V[2]),
                                                                                v_i, V_prime, float(T)]
@@ -100,7 +103,7 @@ class ThrustData:
 
 class DataProcessor:
 
-    def __init__(self, dynamics: DynamicsData, control: ControlData, thrust_data: list, save_path: str):
+    def __init__(self, dynamics: DynamicsData, control: ControlData, thrust_data: ThrustData, save_path: str):
         self.dynamics = dynamics.df
         self.control = control.df
         self.thrust_data = thrust_data.motor_data
@@ -113,7 +116,8 @@ class DataProcessor:
         motor_data_save_path = os.path.join(self.save_path, "Motor Thrust Data")
         os.mkdir(motor_data_save_path)
         for motor_index in range(len(self.thrust_data)):
-            self.thrust_data[motor_index].to_csv(os.path.join(motor_data_save_path, "Motor {}.csv".format(motor_index)))
+            self.thrust_data[motor_index].to_csv(os.path.join(motor_data_save_path,
+                                                              "Motor {}.csv".format(motor_index + 1)))
 
         self.save_path = os.path.join(self.save_path, "Plots")
         os.mkdir(self.save_path)
@@ -171,15 +175,15 @@ class DataProcessor:
         plt.setp(axes[2, 0], title="Position_z")
         plt.setp(axes[2, 0], ylabel="h [m]")
 
-        axes[2, 1].plot(self.dynamics["t"], self.dynamics["psi_[deg]"])
+        axes[0, 1].plot(self.dynamics["t"], self.dynamics["psi_[deg]"])
         plt.setp(axes[0, 1], title="Yaw")
         plt.setp(axes[0, 1], ylabel="yaw [deg]")
 
-        axes[0, 1].plot(self.dynamics["t"], self.dynamics["theta_[deg]"])
+        axes[1, 1].plot(self.dynamics["t"], self.dynamics["theta_[deg]"])
         plt.setp(axes[1, 1], title="Pitch")
         plt.setp(axes[1, 1], ylabel="pitch [deg]")
 
-        axes[1, 1].plot(self.dynamics["t"], self.dynamics["phi_[deg]"])
+        axes[2, 1].plot(self.dynamics["t"], self.dynamics["phi_[deg]"])
         plt.setp(axes[2, 1], title="Roll")
         plt.setp(axes[2, 1], ylabel="roll [deg]")
 
@@ -222,6 +226,21 @@ class DataProcessor:
 
         if save:
             self.save_plot("Motor Thrusts")
+        if show:
+            plt.show()
+
+    def plot_induced_velocity(self, show=True, save=False):
+        for motor_index in range(len(self.thrust_data)):
+            plt.plot(self.thrust_data[motor_index].time, self.thrust_data[motor_index].v_i,
+                     label="Motor {}".format(motor_index + 1))
+
+        plt.xlabel("Time [s]")
+        plt.ylabel("v_i [m/s]")
+        plt.legend()
+        plt.title("Propeller Induced Velocity")
+
+        if save:
+            self.save_plot("Propeller Induced Velocity")
         if show:
             plt.show()
 

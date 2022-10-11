@@ -43,6 +43,9 @@ class ThrustModel:
         return self.prop["eta"] * 2 * v_i * self.rho * self.prop["A"] * V_prime - Thrust
 
     def solve_thrust(self, X: TimeState, U: np.array) -> np.array:
+        # Calculate new time
+        self.t = self.t + self.dt
+
         # Transform velocity relative to propeller position
         V = np.array([X.u - X.r * self.dimensions["d_y"],
                       X.v + X.r * self.dimensions["d_x"],
@@ -52,8 +55,6 @@ class ThrustModel:
 
         # loop through motors, omega = angular rate of each motor
         for motor_index in range(len(U)):
-            # Calculate new time
-            self.t = self.t + self.dt
 
             # Numerically solve for propeller induced velocity
             v_i0 = 100

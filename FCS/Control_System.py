@@ -27,10 +27,15 @@ class ControlSystem:
 
     @staticmethod
     def motor_mixing(output_vector: np.array) -> np.array:
-        return np.array([1, 1, 1, 1,
-                         1, 1, -1, -1,
-                         1, -1, 1, -1,
-                         1, -1, -1, 1]).reshape(4, 4).dot(output_vector)
+        # return np.array([1, 1, 1, 1,
+        #                  1, 1, -1, -1,
+        #                  1, -1, 1, -1,
+        #                  1, -1, -1, 1]).reshape(4, 4).dot(output_vector)
+
+        return np.array([output_vector[0] + output_vector[1] - output_vector[2] + output_vector[3],
+                         output_vector[0] + output_vector[1] + output_vector[2] - output_vector[3],
+                         output_vector[0] - output_vector[1] - output_vector[2] - output_vector[3],
+                         output_vector[0] - output_vector[1] + output_vector[2] + output_vector[3]])
 
     def run_control_loop(self, X: TimeState, t: float) -> np.array:
         control_inputs = self.control_inputs(t)

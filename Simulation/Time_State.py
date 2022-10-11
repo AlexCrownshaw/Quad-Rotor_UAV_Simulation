@@ -11,8 +11,19 @@ class TimeState:
         self.x, self.y, self.z = state_vector[6], state_vector[7], state_vector[8]
 
         # Unwrap Euler angles
-        self.psi, self.theta = state_vector[9] % 2 * np.pi, state_vector[10] % 2 * np.pi
-        self.phi = state_vector[11] % 2 * np.pi
+        psi = float(state_vector[9])
+        self.psi = self.unwrap_euler_angle(psi)
+        self.theta = self.unwrap_euler_angle(float(state_vector[10]))
+        self.phi = self.unwrap_euler_angle(float(state_vector[11]))
+
+    @staticmethod
+    def unwrap_euler_angle(euler_angle: float) -> float:
+        if euler_angle > 0:
+            return euler_angle % (2 * np.pi)
+        elif euler_angle < 0:
+            return euler_angle % (-2 * np.pi)
+        else:
+            return euler_angle
 
 
 class StateDerivative:
