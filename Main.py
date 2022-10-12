@@ -12,17 +12,19 @@ from Simulation.Time_State import TimeState
 from Data_Processing.Data_Processing import DynamicsData, ControlData, DataProcessor
 
 # Simulation time variables
-t_duration = 20
+t_duration = 10
 t_delta = 0.01
 
 # PID Gain Values [Kp, Ki, Kd]
-gain_x = [0.05, 0, 0.5]
+# gain_x = [0.05, 0, 0.5]
+gain_x = [0, 0, 0]
 gain_y = [0, 0, 0]
-# gain_z = [1e3, 0.7, 1e3]  #  Setpoint 10
-gain_z = [15e3, 100, 2e3]  # Setpoint 1
+# gain_z = [1e3, 0.7, 1e3]  # Setpoint 10
+gain_z = [45e3, 17e3, -6.5e3]  # Setpoint 1
 
 gain_yaw = [0, 0, 0]
-gain_pitch = [0.05, 0, 0.5]
+gain_pitch = [0, 0, 0]
+# gain_pitch = [0.05, 0, 0.5]
 gain_roll = [0, 0, 0]
 
 # Config properties file paths
@@ -67,9 +69,9 @@ def main():
 
     dp = DataProcessor(dynamics_data, control_data, thrust_data, SAVE_PATH)
     dp.plot_inertial(save=True)
-    dp.plot_thrust(save=True)
-    dp.plot_induced_velocity(save=True)
-    # dp.plot_3d(save=True)
+    dp.plot_thrust(show=False, save=True)
+    dp.plot_induced_velocity(show=False, save=True)
+    dp.plot_3d(show=False, save=True)
 
 
 def load_vehicle_properties_json(json_path: str) -> Tuple[dict, dict, dict, dict]:

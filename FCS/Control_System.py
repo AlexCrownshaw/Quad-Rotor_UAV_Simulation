@@ -7,7 +7,7 @@ from Simulation.Time_State import TimeState
 class ControlSystem:
 
     max_rpm = 6000
-    motor_limit = 1000000000
+    tau = 0  # PID derivative low pass filter factor
     current_inputs = np.zeros(4)
 
     def __init__(self, dt, maneuvers, gain_x, gain_y, gain_z, gain_yaw, gain_pitch, gain_roll) -> None:
@@ -16,14 +16,14 @@ class ControlSystem:
         self.upcoming_maneuvers = maneuvers
 
         # Translation PID objects
-        self.pid_x = PID(dt, gain_x[0], gain_x[1], gain_x[2], self.motor_limit)
-        self.pid_y = PID(dt, gain_y[0], gain_y[1], gain_y[2], self.motor_limit)
-        self.pid_z = PID(dt, gain_z[0], gain_z[1], gain_z[2], self.motor_limit)
+        self.pid_x = PID(dt, gain_x[0], gain_x[1], gain_x[2], self.tau, self.max_rpm, 0)
+        self.pid_y = PID(dt, gain_y[0], gain_y[1], gain_y[2], self.tau, self.max_rpm, 0)
+        self.pid_z = PID(dt, gain_z[0], gain_z[1], gain_z[2], self.tau, self.max_rpm, 0)
 
         # Rotational PID objects
-        self.pid_roll = PID(dt, gain_yaw[0], gain_yaw[1], gain_yaw[2], self.motor_limit)
-        self.pid_pitch = PID(dt, gain_pitch[0], gain_pitch[1], gain_pitch[2], self.motor_limit)
-        self.pid_yaw = PID(dt, gain_roll[0], gain_roll[1], gain_roll[2], self.motor_limit)
+        self.pid_roll = PID(dt, gain_yaw[0], gain_yaw[1], gain_yaw[2], self.tau, self.max_rpm, 0)
+        self.pid_pitch = PID(dt, gain_pitch[0], gain_pitch[1], gain_pitch[2], self.tau, self.max_rpm, 0)
+        self.pid_yaw = PID(dt, gain_roll[0], gain_roll[1], gain_roll[2], self.tau, self.max_rpm, 0)
 
     @staticmethod
     def motor_mixing(output_vector: np.array) -> np.array:
