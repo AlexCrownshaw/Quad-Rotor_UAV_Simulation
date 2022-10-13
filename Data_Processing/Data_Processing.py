@@ -159,6 +159,7 @@ class DataProcessor:
             self.save_plot("Attitude")
         if show:
             plt.show()
+        plt.close()
 
     def plot_inertial(self, show=True, save=False):
         fig, axes = plt.subplots(3, 2, figsize=(15, 10))
@@ -193,6 +194,7 @@ class DataProcessor:
             self.save_plot("Inertial Position and Attitude")
         if show:
             plt.show()
+        plt.close()
 
     def plot_3d(self, show=True, save=True):
         ax = plt.axes(projection='3d')
@@ -228,6 +230,7 @@ class DataProcessor:
             self.save_plot("Motor Thrusts")
         if show:
             plt.show()
+        plt.close()
 
     def plot_induced_velocity(self, show=True, save=False):
         for motor_index in range(len(self.thrust_data)):
@@ -243,6 +246,7 @@ class DataProcessor:
             self.save_plot("Propeller Induced Velocity")
         if show:
             plt.show()
+        plt.close()
 
     def save_plot(self, file_name: str) -> None:
         plt.savefig(os.path.join(self.save_path, "{}.png".format(file_name)), bbox_inches="tight")
