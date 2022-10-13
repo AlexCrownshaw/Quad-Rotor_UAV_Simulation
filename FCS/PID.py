@@ -1,48 +1,75 @@
-from typing import Tuple
-
 import pandas as pd
 
 
 class PID:
 
-    def __init__(self, dt, kp, ki, kd, output_limit) -> None:
+    def __init__(self, dt, kp, ki, kd, tau, lim_max, lim_min) -> None:
         self.dt = dt
 
         self.kp = kp
         self.ki = ki
         self.kd = kd
 
-        self.output_limit = output_limit
+        self.tau = tau
 
-        self.pid_data = pd.DataFrame(columns=["time", "setpoint", "state_input", "output", "error", "error_sum",
-                                              "d_error"])
+        self.lim_max = lim_max
+        self.lim_min = lim_min
 
         self.t: float = 0 - self.dt
 
-        self.error_last: float = 0
-        self.error_sum: float = 0
+        self.integral: float = 0
+        self.derivative: float = 0
+        self.error_prev: float = 0
+        self.state_input_prev: float = 0
+
+        self.pid_data = pd.DataFrame(columns=["time", "setpoint", "state_input", "output", "error", "integral",
+                                              "derivative"])
 
     def compute_pid(self, state_input: float, setpoint: float) -> float:
 
         # Keep track of simulation time
         self.t = self.t + self.dt
 
+        # Proportional
         error = setpoint - state_input
-        self.error_sum = self.error_sum + error
+        proportional = self.kp * error
 
-        if self.error_sum > self.output_limit:   # error_sum anti-windup
-            self.error_sum = self.output_limit
+        # Integral
+        self.integral = self.integral + 0.5 * self.ki * self.dt * (error + self.error_prev)
 
-        d_error = (error - self.error_last) / self.dt
-        self.error_last = error
+        # Anti-wind-up via dynamic integral clamping
+        # Define integral limits
+        if self.lim_max > proportional:
+            lim_max_integral: float = self.lim_max - proportional
+        else:
+            lim_max_integral: float = 0
 
-        output = self.kp * error + self.ki * self.error_sum + self.kd * d_error
+        if self.lim_min < proportional:
+            lim_min_integral: float = self.lim_min - proportional
+        else:
+            lim_min_integral: float = 0
 
-        if output > self.output_limit:  # Output anti-windup
-            output = self.output_limit
+        # Clamp integral
+        if self.integral > lim_max_integral:
+            self.integral = lim_max_integral
+        elif self.integral < lim_min_integral:
+            self.integral = lim_min_integral
 
-        self.pid_data.loc[len(self.pid_data)] = [self.t, setpoint, state_input, output, error, self.error_sum,
-                                                 d_error]
+        # Derivative
+        # Take derivative of state_input instead of error term
+        self.derivative = (2 * self.kd * (state_input - self.state_input_prev)
+                           + (2 * self.tau - self.dt) * self.derivative) / (2 * self.tau + self.dt)
+
+        # Compute output
+        output = proportional + self.integral + self.derivative
+
+        # Store values for next iteration
+        self.state_input_prev = state_input
+        self.error_prev = error
+
+        # Log data to df
+        self.pid_data.loc[len(self.pid_data)] = [self.t, setpoint, state_input, output, error, self.integral,
+                                                 self.derivative]
 
         return output
 

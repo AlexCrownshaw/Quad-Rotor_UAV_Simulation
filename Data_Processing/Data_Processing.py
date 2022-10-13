@@ -35,9 +35,10 @@ class ControlData:
         self.df = pd.DataFrame(columns=["time", "setpoint_x", "setpoint_y", "setpoint_z", "setpoint_yaw",
                                         "input_y", "input_z", "input_yaw", "input_pitch", "input_roll",
                                         "error_y", "error_z", "error_yaw", "error_pitch", "error_roll",
-                                        "error_sum_y", "error_sum_z", "error_sum_yaw", "error_sum_pitch",
-                                        "error_sum_roll",
-                                        "d_error_y", "d_error_z", "d_error_yaw", "d_error_pitch", "d_error_roll",
+                                        "integral_y", "integral_z", "integral_yaw", "integral_pitch",
+                                        "integral_roll",
+                                        "derivative_y", "derivative_z", "derivative_yaw", "derivative_pitch",
+                                        "derivative_roll",
                                         "output_x", "output_y", "output_z", "output_yaw", "output_pitch",
                                         "output_roll"])
 
@@ -62,19 +63,19 @@ class ControlData:
         self.df["error_pitch"] = self.control_data_list[4]["error"]
         self.df["error_roll"] = self.control_data_list[5]["error"]
 
-        self.df["error_sum_x"] = self.control_data_list[0]["error_sum"]
-        self.df["error_sum_y"] = self.control_data_list[1]["error_sum"]
-        self.df["error_sum_z"] = self.control_data_list[2]["error_sum"]
-        self.df["error_sum_yaw"] = self.control_data_list[3]["error_sum"]
-        self.df["error_sum_pitch"] = self.control_data_list[4]["error_sum"]
-        self.df["error_sum_roll"] = self.control_data_list[5]["error_sum"]
+        self.df["integral_x"] = self.control_data_list[0]["integral"]
+        self.df["integral_y"] = self.control_data_list[1]["integral"]
+        self.df["integral_z"] = self.control_data_list[2]["integral"]
+        self.df["integral_yaw"] = self.control_data_list[3]["integral"]
+        self.df["integral_pitch"] = self.control_data_list[4]["integral"]
+        self.df["integral_roll"] = self.control_data_list[5]["integral"]
 
-        self.df["d_error_x"] = self.control_data_list[0]["d_error"]
-        self.df["d_error_y"] = self.control_data_list[1]["d_error"]
-        self.df["d_error_z"] = self.control_data_list[2]["d_error"]
-        self.df["d_error_yaw"] = self.control_data_list[3]["d_error"]
-        self.df["d_error_pitch"] = self.control_data_list[4]["d_error"]
-        self.df["d_error_roll"] = self.control_data_list[5]["d_error"]
+        self.df["derivative_x"] = self.control_data_list[0]["derivative"]
+        self.df["derivative_y"] = self.control_data_list[1]["derivative"]
+        self.df["derivative_z"] = self.control_data_list[2]["derivative"]
+        self.df["derivative_yaw"] = self.control_data_list[3]["derivative"]
+        self.df["derivative_pitch"] = self.control_data_list[4]["derivative"]
+        self.df["derivative_roll"] = self.control_data_list[5]["derivative"]
 
         self.df["output_x"] = self.control_data_list[0]["output"]
         self.df["output_y"] = self.control_data_list[1]["output"]
