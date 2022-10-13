@@ -12,19 +12,16 @@ from Simulation.Time_State import TimeState
 from Data_Processing.Data_Processing import DynamicsData, ControlData, DataProcessor
 
 # Simulation time variables
-t_duration = 10
+t_duration = 30
 t_delta = 0.01
 
 # PID Gain Values [Kp, Ki, Kd]
-# gain_x = [0.05, 0, 0.5]
-gain_x = [0, 0, 0]
+gain_x = [-0.03, 0, 0.09]
 gain_y = [0, 0, 0]
-# gain_z = [1e3, 0.7, 1e3]  # Setpoint 10
-gain_z = [45e3, 17e3, -6.5e3]  # Setpoint 1
+gain_z = [45e3, 17e3, -6.5e3]
 
 gain_yaw = [0, 0, 0]
-gain_pitch = [0, 0, 0]
-# gain_pitch = [0.05, 0, 0.5]
+gain_pitch = [-400, 0, 140]
 gain_roll = [0, 0, 0]
 
 # Config properties file paths

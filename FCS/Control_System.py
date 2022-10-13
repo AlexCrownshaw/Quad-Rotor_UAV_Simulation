@@ -23,9 +23,9 @@ class ControlSystem:
         self.pid_z = PID(dt, gain_z[0], gain_z[1], gain_z[2], self.tau, self.max_rpm, lim_min=0)
 
         # Rotational PID objects
-        self.pid_roll = PID(dt, gain_yaw[0], gain_yaw[1], gain_yaw[2], self.tau, self.max_rpm, lim_min=0)
+        self.pid_yaw = PID(dt, gain_yaw[0], gain_yaw[1], gain_yaw[2], self.tau, self.max_rpm, lim_min=0)
         self.pid_pitch = PID(dt, gain_pitch[0], gain_pitch[1], gain_pitch[2], self.tau, self.max_rpm, lim_min=0)
-        self.pid_yaw = PID(dt, gain_roll[0], gain_roll[1], gain_roll[2], self.tau, self.max_rpm, lim_min=0)
+        self.pid_roll = PID(dt, gain_roll[0], gain_roll[1], gain_roll[2], self.tau, self.max_rpm, lim_min=0)
 
     @staticmethod
     def motor_mixing(output_vector: np.array) -> np.array:
