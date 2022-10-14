@@ -1,9 +1,8 @@
-import json
 import os.path
 
 import numpy as np
 
-from typing import Tuple
+from Config_JSON.Config_Load_Functions import load_vehicle_properties_json, load_flight_path_json
 from General.UsefulFunctions import get_parent_path
 from FCS.Control_System import ControlSystem
 from Simulation.Thrust_Model import ThrustModel
@@ -12,17 +11,17 @@ from Simulation.Time_State import TimeState
 from Data_Processing.Data_Processing import DynamicsData, ControlData, DataProcessor
 
 # Simulation time variables
-t_duration = 30
+t_duration = 25
 t_delta = 0.01
 
 # PID Gain Values [Kp, Ki, Kd]
 gain_x = [-0.03, 0, 0.09]
-gain_y = [0, 0, 0]
+gain_y = [0.07, 0, -0.18]
 gain_z = [45e3, 17e3, -6.5e3]
 
 gain_yaw = [0, 0, 0]
 gain_pitch = [-400, 0, 140]
-gain_roll = [0, 0, 0]
+gain_roll = [115, 0, -45]
 
 # Config properties file paths
 VEHICLE_PROPERTIES_JSON_PATH = r"Config_JSON/Structural_Properties/Vehicle_Properties.json"
@@ -59,7 +58,8 @@ def main():
 
         dynamics_data.append_time_instance(t, X, T, U)
 
-        print("Calculation Complete for t = {}s".format(t))
+        print("\nTime [s]: {}\nX [m]: {}\tY [m]: {}\tZ [m]: {}\nYaw [deg]: {}\tPitch [deg]: {}\tRoll [deg]: {}"
+              "\nU [RPM]: {}\n T [N]: {}".format(t, X.x, X.y, X.z, X.psi, X.theta, X.phi, U, T))
 
     control_data = ControlData(control.return_pid_data())
     thrust_data = thrust.return_thrust_data()
@@ -68,19 +68,7 @@ def main():
     dp.plot_inertial(save=True)
     dp.plot_thrust(show=False, save=True)
     dp.plot_induced_velocity(show=False, save=True)
-    dp.plot_3d(show=False, save=True)
-
-
-def load_vehicle_properties_json(json_path: str) -> Tuple[dict, dict, dict, dict]:
-    with open(json_path) as json_file:
-        json_object = json.load(json_file)
-        return json_object["properties"], json_object["dimensions"], json_object["motor"], json_object["propeller"]
-
-
-def load_flight_path_json(json_path: str) -> Tuple[dict, dict]:
-    with open(json_path) as json_file:
-        json_object = json.load(json_file)
-        return json_object["Initial_Conditions"], json_object["Maneuvers"]
+    dp.plot_3d(show=True, save=True)
 
 
 if __name__ == "__main__":
