@@ -33,12 +33,13 @@ class ControlData:
     def __init__(self, control_data: list):
         self.control_data_list = control_data
         self.df = pd.DataFrame(columns=["time", "setpoint_x", "setpoint_y", "setpoint_z", "setpoint_yaw",
-                                        "input_y", "input_z", "input_yaw", "input_pitch", "input_roll",
-                                        "error_y", "error_z", "error_yaw", "error_pitch", "error_roll",
-                                        "integral_y", "integral_z", "integral_yaw", "integral_pitch",
+                                        "setpoint_pitch", "setpoint_roll",
+                                        "input_x", "input_y", "input_z", "input_yaw", "input_pitch", "input_roll",
+                                        "error_x", "error_y", "error_z", "error_yaw", "error_pitch", "error_roll",
+                                        "integral_x", "integral_z", "integral_yaw", "integral_pitch",
                                         "integral_roll",
-                                        "derivative_y", "derivative_z", "derivative_yaw", "derivative_pitch",
-                                        "derivative_roll",
+                                        "derivative_x", "derivative_y", "derivative_z", "derivative_yaw",
+                                        "derivative_pitch", "derivative_roll",
                                         "output_x", "output_y", "output_z", "output_yaw", "output_pitch",
                                         "output_roll"])
 
@@ -48,6 +49,8 @@ class ControlData:
         self.df["setpoint_y"] = self.control_data_list[1]["setpoint"]
         self.df["setpoint_z"] = self.control_data_list[2]["setpoint"]
         self.df["setpoint_yaw"] = self.control_data_list[3]["setpoint"]
+        self.df["setpoint_pitch"] = self.control_data_list[4]["setpoint"]
+        self.df["setpoint_roll"] = self.control_data_list[5]["setpoint"]
 
         self.df["input_x"] = self.control_data_list[0]["state_input"]
         self.df["input_y"] = self.control_data_list[1]["state_input"]
@@ -165,31 +168,41 @@ class DataProcessor:
     def plot_inertial(self, show=True, save=False):
         fig, axes = plt.subplots(3, 2, figsize=(15, 10))
 
-        axes[0, 0].plot(self.dynamics["t"], self.dynamics["x"])
-        plt.setp(axes[0, 0], title="Position_x")
+        axes[0, 0].plot(self.dynamics["t"], self.dynamics["x"], label="Output")
+        axes[0, 0].plot(self.dynamics.t, self.control.setpoint_x, label="Input")
+        axes[0, 0].legend()
         plt.setp(axes[0, 0], ylabel="x [m]")
+        plt.setp(axes[0, 0], xlabel="Time [s]")
 
-        axes[1, 0].plot(self.dynamics["t"], self.dynamics["y"])
-        plt.setp(axes[1, 0], title="Position_y")
+        axes[1, 0].plot(self.dynamics["t"], self.dynamics["y"], label="Output")
+        axes[1, 0].plot(self.dynamics.t, self.control.setpoint_y, label="Input")
+        axes[1, 0].legend()
         plt.setp(axes[1, 0], ylabel="y [m]")
+        plt.setp(axes[1, 0], xlabel="Time [s]")
 
-        axes[2, 0].plot(self.dynamics["t"], self.dynamics["z"])
-        plt.setp(axes[2, 0], title="Position_z")
+        axes[2, 0].plot(self.dynamics["t"], self.dynamics["z"], label="Output")
+        axes[2, 0].plot(self.dynamics.t, self.control.setpoint_z, label="Input")
+        axes[2, 0].legend()
         plt.setp(axes[2, 0], ylabel="h [m]")
+        plt.setp(axes[2, 0], xlabel="Time [s]")
 
-        axes[0, 1].plot(self.dynamics["t"], self.dynamics["psi_[deg]"])
-        plt.setp(axes[0, 1], title="Yaw")
+        axes[0, 1].plot(self.dynamics["t"], self.dynamics["psi_[deg]"], label="Output")
+        axes[0, 1].plot(self.dynamics.t, self.control.setpoint_yaw, label="Input")
+        axes[0, 1].legend()
         plt.setp(axes[0, 1], ylabel="yaw [deg]")
+        plt.setp(axes[0, 1], xlabel="Time [s]")
 
-        axes[1, 1].plot(self.dynamics["t"], self.dynamics["theta_[deg]"])
-        plt.setp(axes[1, 1], title="Pitch")
+        axes[1, 1].plot(self.dynamics["t"], self.dynamics["theta_[deg]"], label="Output")
+        axes[1, 1].plot(self.dynamics.t, self.control.setpoint_pitch, label="Input")
+        axes[1, 1].legend()
         plt.setp(axes[1, 1], ylabel="pitch [deg]")
+        plt.setp(axes[1, 1], xlabel="Time [s]")
 
-        axes[2, 1].plot(self.dynamics["t"], self.dynamics["phi_[deg]"])
-        plt.setp(axes[2, 1], title="Roll")
+        axes[2, 1].plot(self.dynamics["t"], self.dynamics["phi_[deg]"], label="Output")
+        axes[2, 1].plot(self.dynamics.t, self.control.setpoint_roll, label="Input")
+        axes[2, 1].legend()
         plt.setp(axes[2, 1], ylabel="roll [deg]")
-
-        plt.xlabel("Time [s]")
+        plt.setp(axes[2, 1], xlabel="Time [s]")
 
         if save:
             self.save_plot("Inertial Position and Attitude")
