@@ -24,6 +24,7 @@ class PID:
 
         self.pid_data = pd.DataFrame(columns=["time", "setpoint", "state_input", "output", "error", "integral",
                                               "derivative"])
+        self.pid_data.loc[0] = [0, 0, 0, 0, 0, 0, 0]
 
     def compute_pid(self, state_input: float, setpoint: float) -> float:
 
