@@ -167,40 +167,47 @@ class DataProcessor:
 
     def plot_inertial(self, show=True, save=False):
         fig, axes = plt.subplots(3, 2, figsize=(15, 10))
+        plt.subplots_adjust(wspace=0.2, hspace=0.4)
 
         axes[0, 0].plot(self.dynamics["t"], self.dynamics["x"], label="Output")
         axes[0, 0].plot(self.dynamics.t, self.control.setpoint_x, label="Input")
         axes[0, 0].legend()
+        plt.setp(axes[0, 0], title="Displacement_X")
         plt.setp(axes[0, 0], ylabel="x [m]")
         plt.setp(axes[0, 0], xlabel="Time [s]")
 
         axes[1, 0].plot(self.dynamics["t"], self.dynamics["y"], label="Output")
         axes[1, 0].plot(self.dynamics.t, self.control.setpoint_y, label="Input")
         axes[1, 0].legend()
+        plt.setp(axes[1, 0], title="Displacement_Y")
         plt.setp(axes[1, 0], ylabel="y [m]")
         plt.setp(axes[1, 0], xlabel="Time [s]")
 
         axes[2, 0].plot(self.dynamics["t"], self.dynamics["z"], label="Output")
         axes[2, 0].plot(self.dynamics.t, self.control.setpoint_z, label="Input")
         axes[2, 0].legend()
+        plt.setp(axes[2, 0], title="Displacement_Z")
         plt.setp(axes[2, 0], ylabel="h [m]")
         plt.setp(axes[2, 0], xlabel="Time [s]")
 
         axes[0, 1].plot(self.dynamics["t"], self.dynamics["psi_[deg]"], label="Output")
         axes[0, 1].plot(self.dynamics.t, self.control.setpoint_yaw, label="Input")
         axes[0, 1].legend()
+        plt.setp(axes[0, 1], title="Yaw")
         plt.setp(axes[0, 1], ylabel="yaw [deg]")
         plt.setp(axes[0, 1], xlabel="Time [s]")
 
         axes[1, 1].plot(self.dynamics["t"], self.dynamics["theta_[deg]"], label="Output")
         axes[1, 1].plot(self.dynamics.t, self.control.setpoint_pitch, label="Input")
         axes[1, 1].legend()
+        plt.setp(axes[1, 1], title="Pitch")
         plt.setp(axes[1, 1], ylabel="pitch [deg]")
         plt.setp(axes[1, 1], xlabel="Time [s]")
 
         axes[2, 1].plot(self.dynamics["t"], self.dynamics["phi_[deg]"], label="Output")
         axes[2, 1].plot(self.dynamics.t, self.control.setpoint_roll, label="Input")
         axes[2, 1].legend()
+        plt.setp(axes[2, 1], title="Roll")
         plt.setp(axes[2, 1], ylabel="roll [deg]")
         plt.setp(axes[2, 1], xlabel="Time [s]")
 
