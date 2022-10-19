@@ -1,0 +1,14 @@
+{
+  "acc": {
+    "spectral_density": 150e-6,
+    "bandwidth": 31
+  },
+    "gyro": {
+    "spectral_density": 190e-6,
+    "bandwidth": 500
+  },
+    "mag": {
+    "spectral_density": 190,
+    "bandwidth": 500
+  }
+}

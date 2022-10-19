@@ -38,7 +38,7 @@ class DynamicsModel:
     def compute_motor_thrusts(self, motor_speeds: np.array) -> np.array:
         pass
 
-    def compute_state_derivative(self, X: np.array, T: np.array) -> Tuple[np.array, StateDerivative]:
+    def compute_state_derivative(self, X: np.array, T: np.array) -> np.array:
         # Apply suitable variable names
         u, v, w = X[0], X[1], X[2]
         p, q, r = X[3], X[4], X[5]
@@ -58,12 +58,12 @@ class DynamicsModel:
         # Define state derivative object
         X_dot = np.zeros(12)
 
-        # Compute linear body acceleration
+        # Compute body frame acceleration
         X_dot[0] = -self.g * sin_theta + r * v - q * w  # u_dot
         X_dot[1] = self.g * sin_phi * cos_theta - r * u + p * w  # v_dot
         X_dot[2] = 1 / self.properties["mass"] * F_z + self.g * cos_phi * cos_theta + q * u - p * v  # w_dot
 
-        # Compute rotational body acceleration
+        # Compute rotational body frame acceleration
         X_dot[3] = 1 / self.properties["I_xx"] * (
                 L + (self.properties["I_yy"] - self.properties["I_zz"]) * q * r)  # p_dot
         X_dot[4] = 1 / self.properties["I_yy"] * (
@@ -83,20 +83,18 @@ class DynamicsModel:
         X_dot[10] = q * cos_phi - r * sin_phi  # theta_dot
         X_dot[11] = p + (q * sin_phi + r * cos_phi) * sin_theta / cos_theta  # phi_dot
 
-        # Create StateDerivative object using state derivative vector
-        sd = StateDerivative(X_dot)
+        return X_dot
 
-        return X_dot, sd
+    def rk4(self, X: TimeState, T: np.array, dt: float) -> Tuple[TimeState, StateDerivative]:
+        k1 = self.compute_state_derivative(X.state_vector, T)
+        k2 = self.compute_state_derivative(X.state_vector + k1 * dt / 2, T)
+        k3 = self.compute_state_derivative(X.state_vector + k2 * dt / 2, T)
+        k4 = self.compute_state_derivative(X.state_vector + k3 * dt, T)
 
-    def rk4(self, X: TimeState, T: np.array, dt: float) -> TimeState:
-        k1, sd_1 = self.compute_state_derivative(X.state_vector, T)
-        k2, sd_2 = self.compute_state_derivative(X.state_vector + k1 * dt / 2, T)
-        k3, sd_3 = self.compute_state_derivative(X.state_vector + k2 * dt / 2, T)
-        k4, sd_4 = self.compute_state_derivative(X.state_vector + k3 * dt, T)
+        X_dot_calc = 1 / 6 * (k1 + 2 * k2 + 2 * k3 + k4)
+        X_calc = X.state_vector + X_dot_calc * dt
 
-        X_calc = X.state_vector + 1 / 6 * (k1 + 2 * k2 + 2 * k3 + k4) * dt
-
-        return TimeState(X_calc)
+        return TimeState(X_calc), StateDerivative(X_dot_calc)
 
     @staticmethod
     def get_rotation_matrix(yaw, pitch, roll, transpose=False) -> np.array:

@@ -5,6 +5,7 @@ class TimeState:
     
     def __init__(self, state_vector: np.array):
         self.state_vector = state_vector
+        self.body_rate_vector = state_vector[3:6]
         
         self.u, self.v, self.w = state_vector[0], state_vector[1], state_vector[2]
         self.p, self.q, self.r = state_vector[3], state_vector[4], state_vector[5]
@@ -30,6 +31,7 @@ class StateDerivative:
 
     def __init__(self, derivative_vector: np.array):
         self.derivative_vector = derivative_vector
+        self.acc_body_vector = self.derivative_vector[0:3]
 
         self.u_dot = self.derivative_vector[0]
         self.v_dot = self.derivative_vector[1]

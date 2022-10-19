@@ -105,12 +105,28 @@ class ThrustData:
                                                                                v_i, V_prime, float(T)]
 
 
+class SensorData:
+    column_headers = ["time", "acc_x", "acc_y", "acc_z", "acc_gn_x", "acc_gn_y", "acc_gn_z",
+                      "gyro_x", "gyro_y", "gyro_z", "gyro_gn_x", "gyro_gn_y", "gyro_gn_z"]
+
+    def __init__(self):
+        self.df = pd.DataFrame(columns=self.column_headers)
+        self.df.loc[0] = [0] * len(self.column_headers)
+
+    def append_data(self, t, acc: np.array, acc_gn: np.array, gyro: np.array, gyro_gn: np.array):
+        self.df.loc[len(self.df)] = [t, acc[0], acc[1], acc[2], acc_gn[0], acc_gn[1], acc_gn[2],
+                                     gyro[0], gyro[1], gyro[2], gyro_gn[0], gyro_gn[1], gyro_gn[2]]
+
+
 class DataProcessor:
 
-    def __init__(self, dynamics: DynamicsData, control: ControlData, thrust_data: ThrustData, save_path: str):
+    def __init__(self, dynamics: DynamicsData, control: ControlData, thrust_data: ThrustData, sensor_data: SensorData,
+                 save_path: str):
+
         self.dynamics = dynamics.df
         self.control = control.df
         self.thrust_data = thrust_data.motor_data
+        self.sensor_data = sensor_data.df
 
         self.save_path = os.path.join(save_path, str(time.strftime("%d-%m-%y %H-%M-%S")))
         os.mkdir(self.save_path)
@@ -227,6 +243,7 @@ class DataProcessor:
             self.save_plot("3D Flight Path")
         if show:
             plt.show()
+        plt.close()
 
     def plot_thrust(self, show=True, save=True):
         _, ax1 = plt.subplots(figsize=(12, 8))
@@ -265,6 +282,30 @@ class DataProcessor:
 
         if save:
             self.save_plot("Propeller Induced Velocity")
+        if show:
+            plt.show()
+        plt.close()
+
+    def plot_sensors(self, show=True, save=False) -> None:
+        fig, axes = plt.subplots(2, 1, figsize=(15, 10))
+        plt.subplots_adjust(wspace=0.2, hspace=0.4)
+
+        axes[0].plot(self.sensor_data.time, self.sensor_data.acc_gn_x, label="Gaussian Noise", alpha=0.7)
+        axes[0].plot(self.sensor_data.time, self.sensor_data.acc_x, label="Ideal")
+        axes[0].legend()
+        plt.setp(axes[0], title="Accelerometer Data")
+        plt.setp(axes[0], ylabel="a [m/s^2]")
+        plt.setp(axes[0], xlabel="Time [s]")
+
+        axes[1].plot(self.sensor_data.time, self.sensor_data.gyro_gn_x, label="Gaussian Noise", alpha=0.7)
+        axes[1].plot(self.sensor_data.time, self.sensor_data.gyro_x, label="Ideal")
+        axes[1].legend()
+        plt.setp(axes[1], title="Gyroscope Data")
+        plt.setp(axes[1], ylabel="omega [rad/s]")
+        plt.setp(axes[1], xlabel="Time [s]")
+
+        if save:
+            self.save_plot("Sensor Data")
         if show:
             plt.show()
         plt.close()
