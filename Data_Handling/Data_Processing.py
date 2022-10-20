@@ -5,7 +5,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 
-from Simulation.Time_State import TimeState
+from Data_Handling.Data_Classes import TimeState
 
 
 class DynamicsData:
@@ -118,15 +118,33 @@ class SensorData:
                                      gyro[0], gyro[1], gyro[2], gyro_gn[0], gyro_gn[1], gyro_gn[2]]
 
 
+class StateEstimationData:
+
+    column_headers = ["time", "psi_rad", "theta_rad", "phi_rad", "psi_deg", "theta_deg", "phi_deg",
+                      "acc_filt_x", "acc_filt_y", "acc_filt_z",
+                      "gyro_filt_x", "gyro_filt_y", "gyro_filt_z"]
+
+    def __init__(self):
+        self.df = pd.DataFrame(columns=self.column_headers)
+        self.df.loc[0] = [0] * len(self.column_headers)
+
+    def append_data(self, t, attitude_vector: np.array, acc_filt: np.array, gyro_filt: np.array):
+        psi, theta, roll = attitude_vector
+        self.df.loc[len(self.df)] = [t, psi, theta, roll, np.degrees(psi), np.degrees(theta), np.degrees(roll),
+                                     acc_filt[0], acc_filt[1], acc_filt[2],
+                                     gyro_filt[0], gyro_filt[1], gyro_filt[2]]
+
+
 class DataProcessor:
 
     def __init__(self, dynamics: DynamicsData, control: ControlData, thrust_data: ThrustData, sensor_data: SensorData,
-                 save_path: str):
+                 estimation: StateEstimationData, save_path: str):
 
         self.dynamics = dynamics.df
         self.control = control.df
         self.thrust_data = thrust_data.motor_data
         self.sensor_data = sensor_data.df
+        self.estimate = estimation.df
 
         self.save_path = os.path.join(save_path, str(time.strftime("%d-%m-%y %H-%M-%S")))
         os.mkdir(self.save_path)
@@ -290,18 +308,20 @@ class DataProcessor:
         fig, axes = plt.subplots(2, 1, figsize=(15, 10))
         plt.subplots_adjust(wspace=0.2, hspace=0.4)
 
-        axes[0].plot(self.sensor_data.time, self.sensor_data.acc_gn_x, label="Gaussian Noise", alpha=0.7)
+        axes[0].plot(self.sensor_data.time, self.sensor_data.acc_gn_x, label="Gaussian Noise", alpha=0.6)
+        axes[0].plot(self.sensor_data.time, self.estimate.acc_filt_x, label="Filtered", alpha=0.8)
         axes[0].plot(self.sensor_data.time, self.sensor_data.acc_x, label="Ideal")
         axes[0].legend()
         plt.setp(axes[0], title="Accelerometer Data")
         plt.setp(axes[0], ylabel="a [m/s^2]")
         plt.setp(axes[0], xlabel="Time [s]")
 
-        axes[1].plot(self.sensor_data.time, self.sensor_data.gyro_gn_x, label="Gaussian Noise", alpha=0.7)
+        axes[1].plot(self.sensor_data.time, self.sensor_data.gyro_gn_x, label="Gaussian Noise", alpha=0.6)
+        axes[1].plot(self.sensor_data.time, self.estimate.gyro_filt_x, label="Filtered", alpha=0.8)
         axes[1].plot(self.sensor_data.time, self.sensor_data.gyro_x, label="Ideal")
         axes[1].legend()
         plt.setp(axes[1], title="Gyroscope Data")
-        plt.setp(axes[1], ylabel="omega [rad/s]")
+        plt.setp(axes[1], ylabel="Omega [rad/s]")
         plt.setp(axes[1], xlabel="Time [s]")
 
         if save:

@@ -1,7 +1,7 @@
 import numpy as np
 
 from FCS.PID import PID
-from Simulation.Time_State import TimeState
+from Data_Handling.Data_Classes import TimeState
 
 
 class ControlSystem:

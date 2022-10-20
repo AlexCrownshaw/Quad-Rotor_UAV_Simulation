@@ -2,11 +2,11 @@ import numpy as np
 
 
 class TimeState:
-    
+
     def __init__(self, state_vector: np.array):
         self.state_vector = state_vector
         self.body_rate_vector = state_vector[3:6]
-        
+
         self.u, self.v, self.w = state_vector[0], state_vector[1], state_vector[2]
         self.p, self.q, self.r = state_vector[3], state_vector[4], state_vector[5]
         self.x, self.y, self.z = state_vector[6], state_vector[7], state_vector[8]
@@ -45,3 +45,18 @@ class StateDerivative:
         self.psi_dot = self.derivative_vector[9]
         self.theta_dot = self.derivative_vector[10]
         self.phi_dot = self.derivative_vector[11]
+
+
+class SensorState:
+
+    def __init__(self, acc, gyro):
+        self.acc = acc
+        self.gyro = gyro
+
+
+class EstimateState:
+
+    def __init__(self, attitude_vector: np.array):
+        self.psi = attitude_vector[0]
+        self.theta = attitude_vector[1]
+        self.phi = attitude_vector[2]

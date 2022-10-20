@@ -1,7 +1,7 @@
 import numpy as np
 
-from Simulation.Time_State import TimeState, StateDerivative
-from Data_Processing.Data_Processing import SensorData
+from Data_Handling.Data_Classes import TimeState, StateDerivative, SensorState
+from Data_Handling.Data_Processing import SensorData
 
 
 class Sensors:
@@ -10,7 +10,7 @@ class Sensors:
 
         self.acc = IMUSensor(acc_config)
         self.gyro = IMUSensor(gyro_config)
-        self.mag = IMUSensor(mag_config)
+        # self.mag = IMUSensor(mag_config)
 
         self.data = SensorData()
 
@@ -56,10 +56,3 @@ class GPS:
 
     def __init__(self):
         pass
-
-
-class SensorState:
-
-    def __init__(self, acc, gyro):
-        self.acc = acc
-        self.gyro = gyro
