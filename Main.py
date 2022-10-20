@@ -7,9 +7,10 @@ from General.UsefulFunctions import get_parent_path
 from FCS.Control_System import ControlSystem
 from Simulation.Thrust_Model import ThrustModel
 from Simulation.Dynamics_Model import DynamicsModel
-from Simulation.Time_State import TimeState
-from Data_Processing.Data_Processing import DynamicsData, ControlData, DataProcessor
+from Data_Handling.Data_Classes import TimeState
+from Data_Handling.Data_Processing import DynamicsData, ControlData, DataProcessor
 from Simulation.Sensors import Sensors
+from FCS.State_Estimation import StateEstimation
 
 # Simulation time variables
 t_duration = 10
@@ -23,6 +24,12 @@ gain_z = [45e3, 17e3, -6.5e3]
 gain_yaw = [0, 0, 0]
 gain_pitch = [-400, 0, 140]
 gain_roll = [115, 0, -45]
+
+# Sensor Variables
+state_estimation_frequency = 100  # Hz
+acc_lpf_cutoff_freq = 4  # Hz
+gyro_lpf_cutoff_freq = 4  # Hz
+
 
 # Config properties file paths
 VEHICLE_PROPERTIES_JSON_PATH = r"Config_JSON/Structural_Properties/Vehicle_Properties.json"
@@ -44,6 +51,7 @@ def main():
     control = ControlSystem(t_delta, maneuvers, gain_x, gain_y, gain_z, gain_yaw, gain_pitch, gain_roll)
     dynamics = DynamicsModel(properties, dimensions)
     sensors = Sensors(acc, gyro, mag)
+    estimation = StateEstimation(state_estimation_frequency, acc_lpf_cutoff_freq, gyro_lpf_cutoff_freq)
 
     # Set up initial conditions
     state_vector = np.array([0, 0, 0, 0, 0, 0, IC["x"], IC["y"], IC["z"], 0, 0, 0])
@@ -60,6 +68,7 @@ def main():
         T = thrust.solve_thrust(X, U)
         X, X_dot = dynamics.rk4(X, T, t_delta)
         S = sensors.simulate_sensors(t, X, X_dot)
+        G = estimation.compute_state_estimate(t, S)
 
         dynamics_data.append_time_instance(t, X, T, U)
 
@@ -69,8 +78,9 @@ def main():
     control_data = ControlData(control.return_pid_data())
     thrust_data = thrust.return_thrust_data()
     sensor_data = sensors.return_sensor_data()
+    estimation_data = estimation.return_data()
 
-    dp = DataProcessor(dynamics_data, control_data, thrust_data, sensor_data, SAVE_PATH)
+    dp = DataProcessor(dynamics_data, control_data, thrust_data, sensor_data, estimation_data, SAVE_PATH)
     dp.plot_inertial(save=True)
     dp.plot_thrust(show=False, save=True)
     dp.plot_induced_velocity(show=False, save=True)

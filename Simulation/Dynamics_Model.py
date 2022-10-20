@@ -1,7 +1,7 @@
 import numpy as np
 
 from typing import Tuple
-from Simulation.Time_State import TimeState, StateDerivative
+from Data_Handling.Data_Classes import TimeState, StateDerivative
 
 
 class DynamicsModel:
@@ -95,20 +95,3 @@ class DynamicsModel:
         X_calc = X.state_vector + X_dot_calc * dt
 
         return TimeState(X_calc), StateDerivative(X_dot_calc)
-
-    @staticmethod
-    def get_rotation_matrix(yaw, pitch, roll, transpose=False) -> np.array:
-        r = np.array([np.cos(pitch) * np.cos(yaw),
-                      np.cos(pitch) * np.sin(yaw),
-                      -np.sin(pitch),
-                      -np.cos(roll) * np.sin(yaw) + np.sin(roll) * np.sin(pitch) * np.cos(yaw),
-                      np.cos(roll) * np.cos(yaw) + np.sin(roll) * np.sin(pitch) * np.sin(yaw),
-                      np.sin(roll) * np.cos(pitch),
-                      np.sin(roll) * np.sin(yaw) + np.cos(roll) * np.sin(pitch) * np.cos(yaw),
-                      -np.sin(roll) * np.cos(yaw) + np.cos(roll) * np.sin(pitch) * np.sin(yaw),
-                      np.cos(roll) * np.cos(pitch)]).reshape(3, 3)
-
-        if transpose:
-            r = r.transpose()
-
-        return r

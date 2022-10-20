@@ -1,8 +1,8 @@
 import numpy as np
 
-from Simulation.Time_State import TimeState
+from Data_Handling.Data_Classes import TimeState
 from scipy.optimize import fsolve
-from Data_Processing.Data_Processing import ThrustData
+from Data_Handling.Data_Processing import ThrustData
 
 
 class ThrustModel:
