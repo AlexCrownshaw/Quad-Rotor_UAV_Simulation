@@ -1,3 +1,5 @@
+from typing import Tuple
+
 import numpy as np
 
 from Data_Handling.Data_Classes import SensorState, EstimateState
@@ -18,7 +20,7 @@ class StateEstimation:
         self.gyro_lpf_q = RCLowPassFilter(t_sample, gyro_lpf_cutoff_freq)
         self.gyro_lpf_r = RCLowPassFilter(t_sample, gyro_lpf_cutoff_freq)
 
-        self.ahrs = AHRS()
+        self.ahrs = AHRS(frequency)
 
         self.data = StateEstimationData()
 
@@ -32,7 +34,11 @@ class StateEstimation:
                                            self.gyro_lpf_r.compute_lfp(S.gyro[2])]))
 
         # Compute AHRS
-        attitude_vector = self.ahrs.compute_ahrs(acc_filt, gyro_filt)
+        self.ahrs.ekf_prediction(gyro_filt)
+        theta, phi = self.ahrs.ekf_update(acc_filt)
+        psi = 0
+
+        attitude_vector = np.array([psi, theta, phi])
 
         # Append data
         self.data.append_data(t, attitude_vector, acc_filt, gyro_filt)
@@ -45,34 +51,82 @@ class StateEstimation:
 
 class AHRS:
 
-    def __init__(self):
-        self.yaw_prev, self.pitch_prev, self.roll_prev = 0, 0, 0
+    def __init__(self, operating_frequency):
+        self.t_sample = 1 / operating_frequency
 
-    def compute_ahrs(self, acc: np.array, gyro: np.array) -> np.array:
-        gyro_inertial = self.get_rotation_matrix(self.yaw_prev, self.pitch_prev, self.roll_prev,
-                                                 transpose=True).dot(gyro)
+        self.psi, self.theta, self.phi = 0, 0, 0
+        self.P = np.array(4 * [0])
+        self.Q = np.array(4 * [0])
 
-        yaw, pitch, roll = 0, 0, 0
-        ahrs_state = np.array([yaw, pitch, roll])
+    def ekf_prediction(self, gyro: np.array) -> None:
+        # Extract gyro sensor data
+        p, q, r = gyro
 
-        return ahrs_state
+        # Pre-compute common trig terms and check for division by zero error
+        sin_phi, cos_phi, cos_theta, tan_theta = self.common_trig_terms()
 
-    @staticmethod
-    def get_rotation_matrix(yaw, pitch, roll, transpose=False) -> np.array:
-        r = np.array([np.cos(pitch) * np.cos(yaw),
-                      np.cos(pitch) * np.sin(yaw),
-                      -np.sin(pitch),
-                      -np.cos(roll) * np.sin(yaw) + np.sin(roll) * np.sin(pitch) * np.cos(yaw),
-                      np.cos(roll) * np.cos(yaw) + np.sin(roll) * np.sin(pitch) * np.sin(yaw),
-                      np.sin(roll) * np.cos(pitch),
-                      np.sin(roll) * np.sin(yaw) + np.cos(roll) * np.sin(pitch) * np.cos(yaw),
-                      -np.sin(roll) * np.cos(yaw) + np.cos(roll) * np.sin(pitch) * np.sin(yaw),
-                      np.cos(roll) * np.cos(pitch)]).reshape(3, 3)
+        # Compute Euler rates based on previous state Euler angles
+        # https://uk.mathworks.com/help/aeroblks/customvariablemass6dofeulerangles.html
+        psi_dot = q * sin_phi / cos_phi + r * cos_phi / cos_theta
+        theta_dot = q * cos_phi - r * sin_phi
+        phi_dot = p + tan_theta * (q * sin_phi + r * cos_phi)
 
-        if transpose:
-            r = r.transpose()
+        # Perform Euler integration to compute new attitude f(x, u)
+        self.psi = self.euler_integration(self.psi, psi_dot)
+        self.theta = self.euler_integration(self.theta, theta_dot)
+        self.phi = self.euler_integration(self.phi, phi_dot)
 
-        return r
+        # Recalculate common trig terms
+        sin_phi, cos_phi, cos_theta, tan_theta = self.common_trig_terms()
+
+        # Compute Jacobian matrix df(x, u)/dx
+        A = np.array([tan_theta * (q * cos_phi - r * sin_phi),
+                      (tan_theta ** 2 + 1) * (q * sin_phi + r * cos_phi),
+                      -q * sin_phi - r * cos_phi, 0])
+
+        # Update covariance matrix
+        self.P = np.array([[self.t_sample*(2*self.P[0]*A[0] + self.P[1]*A[1] + self.P[2]*A[1] + self.Q[0]) + self.P[0],
+                            self.t_sample*(self.P[0]*A[2] + self.P[1]*A[0] + self.P[1]*A[3] + self.P[3]*A[1] +
+                                           self.Q[1]) + self.P[1]],
+                           [self.t_sample*(self.P[0]*A[2] + self.P[2]*A[0] + self.P[2]*A[3] + self.P[3]*A[1] +
+                                           self.Q[2]) + self.P[2],
+                            self.t_sample*(self.P[1]*A[2] + self.P[2]*A[2] + 2*self.P[3]*A[3] + self.Q[3]) +
+                            self.P[3]]])
+
+    def ekf_update(self, acc: np.array) -> np.array:
+        # Extract acc sensor data
+        a_x, a_y, a_z = acc
+
+        # Compute common trig terms
+        sin_phi, cos_phi, cos_theta, tan_theta = self.common_trig_terms()
+
+        # compute output function h(x, u)
+
+        # Compute Jacobian matrix dh(x, u)/dx
+
+        # Compute Kalman gain
+
+        # Update covariance matrix
+
+        # Update state estimate
+        theta = 0
+        phi = 0
+
+        return theta, phi
+
+    def common_trig_terms(self) -> Tuple[float, float, float, float]:
+        # Compute common trigonometric terms
+        sin_phi, cos_phi = np.sin(self.phi), np.cos(self.phi)
+        cos_theta, tan_theta = np.cos(self.theta), np.tan(self.theta)
+
+        # Check for division by zero error
+        if cos_theta == 0:
+            cos_theta = 1e-6
+
+        return sin_phi, cos_phi, cos_theta, tan_theta
+
+    def euler_integration(self, prev_state, derivative) -> float:
+        return prev_state + derivative * self.t_sample
 
 
 class RCLowPassFilter:
