@@ -5,7 +5,7 @@
   },
     "gyro": {
     "spectral_density": 190e-6,
-    "bandwidth": 500
+    "bandwidth": 50
   },
     "mag": {
     "spectral_density": 190,

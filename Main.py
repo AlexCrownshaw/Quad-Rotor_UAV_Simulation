@@ -30,6 +30,7 @@ state_estimation_frequency = 100  # Hz
 acc_lpf_cutoff_freq = 4  # Hz
 gyro_lpf_cutoff_freq = 4  # Hz
 
+# State Estimation Variables
 
 # Config properties file paths
 VEHICLE_PROPERTIES_JSON_PATH = r"Config_JSON/Structural_Properties/Vehicle_Properties.json"

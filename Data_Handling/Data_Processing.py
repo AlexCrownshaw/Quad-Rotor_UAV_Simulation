@@ -310,7 +310,7 @@ class DataProcessor:
 
         axes[0].plot(self.sensor_data.time, self.sensor_data.acc_gn_x, label="Gaussian Noise", alpha=0.6)
         axes[0].plot(self.sensor_data.time, self.estimate.acc_filt_x, label="Filtered", alpha=0.8)
-        axes[0].plot(self.sensor_data.time, self.sensor_data.acc_x, label="Ideal")
+        axes[0].plot(self.sensor_data.time, self.sensor_data.acc_x, label="True")
         axes[0].legend()
         plt.setp(axes[0], title="Accelerometer Data")
         plt.setp(axes[0], ylabel="a [m/s^2]")
@@ -318,7 +318,7 @@ class DataProcessor:
 
         axes[1].plot(self.sensor_data.time, self.sensor_data.gyro_gn_x, label="Gaussian Noise", alpha=0.6)
         axes[1].plot(self.sensor_data.time, self.estimate.gyro_filt_x, label="Filtered", alpha=0.8)
-        axes[1].plot(self.sensor_data.time, self.sensor_data.gyro_x, label="Ideal")
+        axes[1].plot(self.sensor_data.time, self.sensor_data.gyro_x, label="True")
         axes[1].legend()
         plt.setp(axes[1], title="Gyroscope Data")
         plt.setp(axes[1], ylabel="Omega [rad/s]")
