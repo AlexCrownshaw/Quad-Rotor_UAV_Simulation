@@ -157,6 +157,8 @@ class DataProcessor:
             self.thrust_data[motor_index].to_csv(os.path.join(motor_data_save_path,
                                                               "Motor {}.csv".format(motor_index + 1)))
 
+        self.estimate.to_csv(os.path.join(self.save_path, "State_Estimate_Data.csv"))
+
         self.save_path = os.path.join(self.save_path, "Plots")
         os.mkdir(self.save_path)
 
@@ -226,6 +228,7 @@ class DataProcessor:
 
         axes[0, 1].plot(self.dynamics["t"], self.dynamics["psi_[deg]"], label="Output")
         axes[0, 1].plot(self.dynamics.t, self.control.setpoint_yaw, label="Input")
+        axes[0, 1].plot(self.dynamics.t, self.estimate.psi_deg, label="State Estimate", alpha=0.7)
         axes[0, 1].legend()
         plt.setp(axes[0, 1], title="Yaw")
         plt.setp(axes[0, 1], ylabel="yaw [deg]")
@@ -233,6 +236,7 @@ class DataProcessor:
 
         axes[1, 1].plot(self.dynamics["t"], self.dynamics["theta_[deg]"], label="Output")
         axes[1, 1].plot(self.dynamics.t, self.control.setpoint_pitch, label="Input")
+        axes[1, 1].plot(self.dynamics.t, self.estimate.theta_deg, label="State Estimate", alpha=0.7)
         axes[1, 1].legend()
         plt.setp(axes[1, 1], title="Pitch")
         plt.setp(axes[1, 1], ylabel="pitch [deg]")
@@ -240,6 +244,7 @@ class DataProcessor:
 
         axes[2, 1].plot(self.dynamics["t"], self.dynamics["phi_[deg]"], label="Output")
         axes[2, 1].plot(self.dynamics.t, self.control.setpoint_roll, label="Input")
+        axes[2, 1].plot(self.dynamics.t, self.estimate.phi_deg, label="State Estimate", alpha=0.7)
         axes[2, 1].legend()
         plt.setp(axes[2, 1], title="Roll")
         plt.setp(axes[2, 1], ylabel="roll [deg]")
@@ -308,12 +313,12 @@ class DataProcessor:
         fig, axes = plt.subplots(2, 1, figsize=(15, 10))
         plt.subplots_adjust(wspace=0.2, hspace=0.4)
 
-        axes[0].plot(self.sensor_data.time, self.sensor_data.acc_gn_x, label="Gaussian Noise", alpha=0.6)
-        axes[0].plot(self.sensor_data.time, self.estimate.acc_filt_x, label="Filtered", alpha=0.8)
-        axes[0].plot(self.sensor_data.time, self.sensor_data.acc_x, label="True")
+        axes[0].plot(self.sensor_data.time, self.sensor_data.acc_gn_z, label="Gaussian Noise", alpha=0.6)
+        axes[0].plot(self.sensor_data.time, self.estimate.acc_filt_z, label="Filtered", alpha=0.8)
+        axes[0].plot(self.sensor_data.time, self.sensor_data.acc_z, label="True")
         axes[0].legend()
         plt.setp(axes[0], title="Accelerometer Data")
-        plt.setp(axes[0], ylabel="a [m/s^2]")
+        plt.setp(axes[0], ylabel="a_z [m/s^2]")
         plt.setp(axes[0], xlabel="Time [s]")
 
         axes[1].plot(self.sensor_data.time, self.sensor_data.gyro_gn_x, label="Gaussian Noise", alpha=0.6)

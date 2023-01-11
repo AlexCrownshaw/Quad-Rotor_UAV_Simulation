@@ -8,7 +8,7 @@ from Data_Handling.Data_Processing import ThrustData
 class ThrustModel:
     rho = 1.225  # Kg/m^3
 
-    def __init__(self, dt,  motor_properties: dict, propeller_properties: dict, dimensions: dict):
+    def __init__(self, dt, motor_properties: dict, propeller_properties: dict, dimensions: dict):
         self.dt = dt
         self.t: float = 0
 
@@ -55,7 +55,6 @@ class ThrustModel:
 
         # loop through motors, omega = angular rate of each motor
         for motor_index in range(len(U)):
-
             # Numerically solve for propeller induced velocity
             v_i0 = 100
             thrust_eqn_args = 2 * np.pi / 60 * U[motor_index], V
