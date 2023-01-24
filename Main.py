@@ -34,9 +34,9 @@ gyro_lpf_cutoff_freq = 4  # Hz
 alpha = 0.3
 
 # Config properties file paths
-VEHICLE_PROPERTIES_JSON_PATH = r"Config_JSON/Structural_Properties/Vehicle_Properties.json"
-FLIGHT_PATH_JSON_PATH = r"Config_JSON/Flight_Plan/Flight_Path.json"
-SENSOR_CONFIG_JSON_PATH = r"Config_JSON/Sensors/Sensors.json"
+VEHICLE_PROPERTIES_JSON_PATH = r"Config_JSON/Vehicle_Properties.json"
+FLIGHT_PATH_JSON_PATH = r"Config_JSON/Flight_Path.json"
+SENSOR_CONFIG_JSON_PATH = r"Config_JSON/Sensors.json"
 
 # Data save path
 SAVE_PATH = os.path.join(get_parent_path(os.path.abspath(__file__)), "Data")
