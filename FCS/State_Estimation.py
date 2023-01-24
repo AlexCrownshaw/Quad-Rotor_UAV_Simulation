@@ -8,7 +8,9 @@ from Data_Handling.Data_Processing import StateEstimationData
 
 class StateEstimation:
 
-    def __init__(self, frequency: float, acc_lpf_cutoff_freq: int, gyro_lpf_cutoff_freq: int):
+    TYPE = "comp_filt"  # "ekf"
+
+    def __init__(self, frequency: float, acc_lpf_cutoff_freq: int, gyro_lpf_cutoff_freq: int, alpha):
         # Create low pass filter objects
         t_sample = 1 / frequency
 
@@ -20,7 +22,12 @@ class StateEstimation:
         self.gyro_lpf_q = RCLowPassFilter(t_sample, gyro_lpf_cutoff_freq)
         self.gyro_lpf_r = RCLowPassFilter(t_sample, gyro_lpf_cutoff_freq)
 
-        self.ahrs = AHRS(frequency)
+        if self.TYPE == "comp_filt":
+            self.comp_filt = ComplimentaryFilter(alpha, frequency)
+        elif self.TYPE == "ekf":
+            self.ekf = EKF(frequency)
+
+        self.ekf = EKF(frequency)
 
         self.data = StateEstimationData()
 
@@ -33,15 +40,22 @@ class StateEstimation:
                                            self.gyro_lpf_q.compute_lfp(S.gyro[1]),
                                            self.gyro_lpf_r.compute_lfp(S.gyro[2])]))
 
-        # Compute AHRS
-        self.ahrs.ekf_prediction(gyro_filt)
-        theta, phi = self.ahrs.ekf_update(acc_filt)
-        psi = 0
+        # Compute attitude estimate
+        if self.TYPE == "comp_filt":
+            phi, theta = self.comp_filt.compute_comp_filt(acc_filt, gyro_filt)
 
+        elif self.TYPE == "ekf":
+            self.ekf.ekf_prediction(gyro_filt)
+            theta, phi = self.ekf.ekf_update(acc_filt)
+
+        psi = 0
         attitude_vector = np.array([psi, theta, phi])
 
         # Append data
         self.data.append_data(t, attitude_vector, acc_filt, gyro_filt)
+
+        # self.ekf.ekf_prediction(gyro_filt)
+        # self.ekf.ekf_update(acc_filt)
 
         return EstimateState(attitude_vector)
 
@@ -49,21 +63,57 @@ class StateEstimation:
         return self.data
 
 
-class AHRS:
+class ComplimentaryFilter:
+
+    def __init__(self, alpha: float, frequency: int):
+        self.alpha = alpha
+        self.dt = 1/frequency
+
+        self.phi_hat, self.theta_hat = 0, 0
+
+    def compute_comp_filt(self, acc, gyro) -> Tuple[float, float]:
+        a_x, a_y, a_z = acc
+        p, q, r = gyro
+
+        # Compute Euler angles according to acceleration data
+        phi_hat_acc = np.arctan(a_y/a_z)
+        theta_hat_acc = np.arcsin(a_x/9.81)
+
+        # pre-compute common trigonometric terms
+        sin_phi = np.sin(self.phi_hat)
+        cos_phi = np.cos(self.phi_hat)
+        tan_theta = np.tan(self.theta_hat)
+
+        # Convert body rates to Euler rates
+        phi_dot = p + tan_theta * (q * sin_phi + r * cos_phi)
+        theta_dot = q * cos_phi - r * sin_phi
+
+        # Compute state estimates
+        self.phi_hat = phi_hat_acc * self.alpha + (1 - self.alpha) * (self.phi_hat + self.dt * phi_dot)
+        self.theta_hat = -theta_hat_acc * self.alpha + (1 - self.alpha) * (self.theta_hat + self.dt * theta_dot)
+
+        return self.phi_hat, self.theta_hat
+
+
+class EKF:
+
+    g = 9.81
 
     def __init__(self, operating_frequency):
         self.t_sample = 1 / operating_frequency
 
         self.psi, self.theta, self.phi = 0, 0, 0
-        self.P = np.array(4 * [0])
-        self.Q = np.array(4 * [0])
+        self.P = np.zeros(4)
+        self.Q = np.eye(4)
+        self.R = np.eye(4)
 
     def ekf_prediction(self, gyro: np.array) -> None:
         # Extract gyro sensor data
         p, q, r = gyro
 
         # Pre-compute common trig terms and check for division by zero error
-        sin_phi, cos_phi, cos_theta, tan_theta = self.common_trig_terms()
+        sin_phi, cos_phi = np.sin(self.phi), np.cos(self.phi)
+        cos_theta, tan_theta = np.cos(self.theta), np.tan(self.theta)
 
         # Compute Euler rates based on previous state Euler angles
         # https://uk.mathworks.com/help/aeroblks/customvariablemass6dofeulerangles.html
@@ -77,34 +127,150 @@ class AHRS:
         self.phi = self.euler_integration(self.phi, phi_dot)
 
         # Recalculate common trig terms
-        sin_phi, cos_phi, cos_theta, tan_theta = self.common_trig_terms()
+        sin_phi, cos_phi = np.sin(self.phi), np.cos(self.phi)
+        cos_theta, tan_theta = np.cos(self.theta), np.tan(self.theta)
 
         # Compute Jacobian matrix df(x, u)/dx
         A = np.array([tan_theta * (q * cos_phi - r * sin_phi),
                       (tan_theta ** 2 + 1) * (q * sin_phi + r * cos_phi),
                       -q * sin_phi - r * cos_phi, 0])
 
-        # Update covariance matrix
-        self.P = np.array([[self.t_sample*(2*self.P[0]*A[0] + self.P[1]*A[1] + self.P[2]*A[1] + self.Q[0]) + self.P[0],
-                            self.t_sample*(self.P[0]*A[2] + self.P[1]*A[0] + self.P[1]*A[3] + self.P[3]*A[1] +
-                                           self.Q[1]) + self.P[1]],
-                           [self.t_sample*(self.P[0]*A[2] + self.P[2]*A[0] + self.P[2]*A[3] + self.P[3]*A[1] +
-                                           self.Q[2]) + self.P[2],
-                            self.t_sample*(self.P[1]*A[2] + self.P[2]*A[2] + 2*self.P[3]*A[3] + self.Q[3]) +
-                            self.P[3]]])
+        # Update covariance matrix [P_n+1 = P_n + T * (A*P_n + P_n*A^T + Q)]
+        self.P = np.array([self.t_sample * (2 * self.P[0] * A[0] + self.P[1] * A[1] + self.P[2] * A[1] + self.Q[0]) +
+                           self.P[0],
+                           self.t_sample * (self.P[0] * A[2] + self.P[1] * A[0] + self.P[1] * A[3] + self.P[3] * A[1] +
+                                            self.Q[1]) + self.P[1],
+                           self.t_sample * (self.P[0] * A[2] + self.P[2] * A[0] + self.P[2] * A[3] + self.P[3] * A[1] +
+                                            self.Q[2]) + self.P[2],
+                           self.t_sample * (self.P[1] * A[2] + self.P[2] * A[2] + 2 * self.P[3] * A[3] + self.Q[3]) +
+                           self.P[3]])
 
     def ekf_update(self, acc: np.array) -> np.array:
         # Extract acc sensor data
         a_x, a_y, a_z = acc
 
         # Compute common trig terms
-        sin_phi, cos_phi, cos_theta, tan_theta = self.common_trig_terms()
+        sin_phi, cos_phi = np.sin(self.phi), np.cos(self.phi)
+        sin_theta, cos_theta = np.sin(self.theta), np.cos(self.theta)
 
         # compute output function h(x, u)
+        h = np.array([self.g * sin_theta,
+                      self.g * (-cos_theta * sin_phi),
+                      self.g * (-cos_theta * cos_phi)])
 
         # Compute Jacobian matrix dh(x, u)/dx
+        C = np.array([0, self.g * cos_theta, -self.g * cos_phi * cos_theta, self.g * sin_phi * sin_theta,
+                      self.g * sin_phi * cos_theta, self.g * sin_theta * cos_phi])
+        C = np.pad(C, (0, 2), "constant").reshape(2, 4)
+        print(C)
 
-        # Compute Kalman gain
+        C_T = np.transpose(C)
+        k_a = self.P.dot(C_T)
+        print(k_a)
+        k_b = self.R + C.dot(self.P.dot(C_T))
+
+        # Compute Kalman gain [K = P*C' * [C*P*C'+R]^-1]
+        K = k_a * np.invert(k_b)
+
+        # K = np.array([(self.P[0]*C[0] + self.P[1]*C[1])
+        #               *(-self.P[0]*C[2]**2 - self.P[1]*C[2]*C[3] - self.P[2]*C[2]*C[3] - self.P[3]*C[3]**2 - self.R[3])
+        #               /(-self.P[0]*self.P[3]*C[0]**2*C[3]**2 + 2*self.P[0]*self.P[3]*C[0]*C[1]*C[2]*C[3]
+        #                 - self.P[0]*self.P[3]*C[1]**2*C[2]**2 - self.P[0]*C[0]**2*self.R[3]
+        #                 + self.P[0]*C[0]*C[2]*self.R[1] + self.P[0]*C[0]*C[2]*self.R[2] - self.P[0]*C[2]**2*self.R[0]
+        #                 + self.P[1]*self.P[2]*C[0]**2*C[3]**2 - 2*self.P[1]*self.P[2]*C[0]*C[1]*C[2]*C[3]
+        #                 + self.P[1]*self.P[2]*C[1]**2*C[2]**2 - self.P[1]*C[0]*C[1]*self.R[3]
+        #                 + self.P[1]*C[0]*C[3]*self.R[2] + self.P[1]*C[1]*C[2]*self.R[1]
+        #                 - self.P[1]*C[2]*C[3]*self.R[0] - self.P[2]*C[0]*C[1]*self.R[3] + self.P[2]*C[0]*C[3]*self.R[1]
+        #                 + self.P[2]*C[1]*C[2]*self.R[2] - self.P[2]*C[2]*C[3]*self.R[0] - self.P[3]*C[1]**2*self.R[3]
+        #                 + self.P[3]*C[1]*C[3]*self.R[1] + self.P[3]*C[1]*C[3]*self.R[2] - self.P[3]*C[3]**2*self.R[0]
+        #                 - self.R[0]*self.R[3] + self.R[1]*self.R[2]) + (self.P[0]*C[2] + self.P[1]*C[3])*
+        #               (self.P[0]*C[0]*C[2] + self.P[1]*C[1]*C[2] + self.P[2]*C[0]*C[3] + self.P[3]*C[1]*C[3]
+        #                + self.R[2])/(-self.P[0]*self.P[3]*C[0]**2*C[3]**2 + 2*self.P[0]*self.P[3]*C[0]*C[1]*C[2]*C[3]
+        #                              - self.P[0]*self.P[3]*C[1]**2*C[2]**2 - self.P[0]*C[0]**2*self.R[3]
+        #                              + self.P[0]*C[0]*C[2]*self.R[1] + self.P[0]*C[0]*C[2]*self.R[2]
+        #                              - self.P[0]*C[2]**2*self.R[0] + self.P[1]*self.P[2]*C[0]**2*C[3]**2
+        #                              - 2*self.P[1]*self.P[2]*C[0]*C[1]*C[2]*C[3] + self.P[1]*self.P[2]*C[1]**2*C[2]**2
+        #                              - self.P[1]*C[0]*C[1]*self.R[3] + self.P[1]*C[0]*C[3]*self.R[2]
+        #                              + self.P[1]*C[1]*C[2]*self.R[1] - self.P[1]*C[2]*C[3]*self.R[0]
+        #                              - self.P[2]*C[0]*C[1]*self.R[3] + self.P[2]*C[0]*C[3]*self.R[1]
+        #                              + self.P[2]*C[1]*C[2]*self.R[2] - self.P[2]*C[2]*C[3]*self.R[0]
+        #                              - self.P[3]*C[1]**2*self.R[3] + self.P[3]*C[1]*C[3]*self.R[1]
+        #                              + self.P[3]*C[1]*C[3]*self.R[2] - self.P[3]*C[3]**2*self.R[0]
+        #                              - self.R[0]*self.R[3] + self.R[1]*self.R[2]),
+        #               (self.P[0]*C[0] + self.P[1]*C[1])*(self.P[0]*C[0]*C[2] + self.P[1]*C[0]*C[3]
+        #                                                  + self.P[2]*C[1]*C[2] + self.P[3]*C[1]*C[3] + self.R[1])
+        #               /(-self.P[0]*self.P[3]*C[0]**2*C[3]**2 + 2*self.P[0]*self.P[3]*C[0]*C[1]*C[2]*C[3]
+        #                 - self.P[0]*self.P[3]*C[1]**2*C[2]**2 - self.P[0]*C[0]**2*self.R[3]
+        #                 + self.P[0]*C[0]*C[2]*self.R[1] + self.P[0]*C[0]*C[2]*self.R[2] - self.P[0]*C[2]**2*self.R[0]
+        #                 + self.P[1]*self.P[2]*C[0]**2*C[3]**2 - 2*self.P[1]*self.P[2]*C[0]*C[1]*C[2]*C[3]
+        #                 + self.P[1]*self.P[2]*C[1]**2*C[2]**2 - self.P[1]*C[0]*C[1]*self.R[3]
+        #                 + self.P[1]*C[0]*C[3]*self.R[2] + self.P[1]*C[1]*C[2]*self.R[1] - self.P[1]*C[2]*C[3]*self.R[0]
+        #                 - self.P[2]*C[0]*C[1]*self.R[3] + self.P[2]*C[0]*C[3]*self.R[1] + self.P[2]*C[1]*C[2]*self.R[2]
+        #                 - self.P[2]*C[2]*C[3]*self.R[0] - self.P[3]*C[1]**2*self.R[3] + self.P[3]*C[1]*C[3]*self.R[1]
+        #                 + self.P[3]*C[1]*C[3]*self.R[2] - self.P[3]*C[3]**2*self.R[0] - self.R[0]*self.R[3]
+        #                 + self.R[1]*self.R[2]) + (self.P[0]*C[2] + self.P[1]*C[3])
+        #               *(-self.P[0]*C[0]**2 - self.P[1]*C[0]*C[1] - self.P[2]*C[0]*C[1] - self.P[3]*C[1]**2 - self.R[0])
+        #               /(-self.P[0]*self.P[3]*C[0]**2*C[3]**2 + 2*self.P[0]*self.P[3]*C[0]*C[1]*C[2]*C[3]
+        #                 - self.P[0]*self.P[3]*C[1]**2*C[2]**2 - self.P[0]*C[0]**2*self.R[3]
+        #                 + self.P[0]*C[0]*C[2]*self.R[1] + self.P[0]*C[0]*C[2]*self.R[2] - self.P[0]*C[2]**2*self.R[0]
+        #                 + self.P[1]*self.P[2]*C[0]**2*C[3]**2 - 2*self.P[1]*self.P[2]*C[0]*C[1]*C[2]*C[3]
+        #                 + self.P[1]*self.P[2]*C[1]**2*C[2]**2 - self.P[1]*C[0]*C[1]*self.R[3]
+        #                 + self.P[1]*C[0]*C[3]*self.R[2] + self.P[1]*C[1]*C[2]*self.R[1] - self.P[1]*C[2]*C[3]*self.R[0]
+        #                 - self.P[2]*C[0]*C[1]*self.R[3] + self.P[2]*C[0]*C[3]*self.R[1] + self.P[2]*C[1]*C[2]*self.R[2]
+        #                 - self.P[2]*C[2]*C[3]*self.R[0] - self.P[3]*C[1]**2*self.R[3] + self.P[3]*C[1]*C[3]*self.R[1]
+        #                 + self.P[3]*C[1]*C[3]*self.R[2] - self.P[3]*C[3]**2*self.R[0] - self.R[0]*self.R[3]
+        #                 + self.R[1]*self.R[2]),
+        #              (self.P[2]*C[0] + self.P[3]*C[1])
+        #               *(-self.P[0]*C[2]**2 - self.P[1]*C[2]*C[3] - self.P[2]*C[2]*C[3] - self.P[3]*C[3]**2 - self.R[3])
+        #               /(-self.P[0]*self.P[3]*C[0]**2*C[3]**2 + 2*self.P[0]*self.P[3]*C[0]*C[1]*C[2]*C[3]
+        #                 - self.P[0]*self.P[3]*C[1]**2*C[2]**2 - self.P[0]*C[0]**2*self.R[3]
+        #                 + self.P[0]*C[0]*C[2]*self.R[1] + self.P[0]*C[0]*C[2]*self.R[2] - self.P[0]*C[2]**2*self.R[0]
+        #                 + self.P[1]*self.P[2]*C[0]**2*C[3]**2 - 2*self.P[1]*self.P[2]*C[0]*C[1]*C[2]*C[3]
+        #                 + self.P[1]*self.P[2]*C[1]**2*C[2]**2 - self.P[1]*C[0]*C[1]*self.R[3]
+        #                 + self.P[1]*C[0]*C[3]*self.R[2] + self.P[1]*C[1]*C[2]*self.R[1] - self.P[1]*C[2]*C[3]*self.R[0]
+        #                 - self.P[2]*C[0]*C[1]*self.R[3] + self.P[2]*C[0]*C[3]*self.R[1] + self.P[2]*C[1]*C[2]*self.R[2]
+        #                 - self.P[2]*C[2]*C[3]*self.R[0] - self.P[3]*C[1]**2*self.R[3] + self.P[3]*C[1]*C[3]*self.R[1]
+        #                 + self.P[3]*C[1]*C[3]*self.R[2] - self.P[3]*C[3]**2*self.R[0] - self.R[0]*self.R[3]
+        #                 + self.R[1]*self.R[2]) + (self.P[2]*C[2] + self.P[3]*C[3])
+        #               *(self.P[0]*C[0]*C[2] + self.P[1]*C[1]*C[2] + self.P[2]*C[0]*C[3] + self.P[3]*C[1]*C[3]
+        #                 + self.R[2])/(-self.P[0]*self.P[3]*C[0]**2*C[3]**2 + 2*self.P[0]*self.P[3]*C[0]*C[1]*C[2]*C[3]
+        #                               - self.P[0]*self.P[3]*C[1]**2*C[2]**2 - self.P[0]*C[0]**2*self.R[3]
+        #                               + self.P[0]*C[0]*C[2]*self.R[1] + self.P[0]*C[0]*C[2]*self.R[2]
+        #                               - self.P[0]*C[2]**2*self.R[0] + self.P[1]*self.P[2]*C[0]**2*C[3]**2
+        #                               - 2*self.P[1]*self.P[2]*C[0]*C[1]*C[2]*C[3] + self.P[1]*self.P[2]*C[1]**2*C[2]**2
+        #                               - self.P[1]*C[0]*C[1]*self.R[3] + self.P[1]*C[0]*C[3]*self.R[2]
+        #                               + self.P[1]*C[1]*C[2]*self.R[1] - self.P[1]*C[2]*C[3]*self.R[0]
+        #                               - self.P[2]*C[0]*C[1]*self.R[3] + self.P[2]*C[0]*C[3]*self.R[1]
+        #                               + self.P[2]*C[1]*C[2]*self.R[2] - self.P[2]*C[2]*C[3]*self.R[0]
+        #                               - self.P[3]*C[1]**2*self.R[3] + self.P[3]*C[1]*C[3]*self.R[1]
+        #                               + self.P[3]*C[1]*C[3]*self.R[2] - self.P[3]*C[3]**2*self.R[0]
+        #                               - self.R[0]*self.R[3] + self.R[1]*self.R[2]),
+        #               (self.P[2]*C[0] + self.P[3]*C[1])*(self.P[0]*C[0]*C[2] + self.P[1]*C[0]*C[3] + self.P[2]*C[1]*C[2]
+        #                                                  + self.P[3]*C[1]*C[3]
+        #                 + self.R[1])/(-self.P[0]*self.P[3]*C[0]**2*C[3]**2 + 2*self.P[0]*self.P[3]*C[0]*C[1]*C[2]*C[3]
+        #                               - self.P[0]*self.P[3]*C[1]**2*C[2]**2 - self.P[0]*C[0]**2*self.R[3]
+        #                               + self.P[0]*C[0]*C[2]*self.R[1] + self.P[0]*C[0]*C[2]*self.R[2]
+        #                               - self.P[0]*C[2]**2*self.R[0] + self.P[1]*self.P[2]*C[0]**2*C[3]**2
+        #                               - 2*self.P[1]*self.P[2]*C[0]*C[1]*C[2]*C[3] + self.P[1]*self.P[2]*C[1]**2*C[2]**2
+        #                               - self.P[1]*C[0]*C[1]*self.R[3] + self.P[1]*C[0]*C[3]*self.R[2]
+        #                               + self.P[1]*C[1]*C[2]*self.R[1] - self.P[1]*C[2]*C[3]*self.R[0]
+        #                               - self.P[2]*C[0]*C[1]*self.R[3] + self.P[2]*C[0]*C[3]*self.R[1]
+        #                               + self.P[2]*C[1]*C[2]*self.R[2] - self.P[2]*C[2]*C[3]*self.R[0]
+        #                               - self.P[3]*C[1]**2*self.R[3] + self.P[3]*C[1]*C[3]*self.R[1]
+        #                               + self.P[3]*C[1]*C[3]*self.R[2] - self.P[3]*C[3]**2*self.R[0]
+        #                               - self.R[0]*self.R[3] + self.R[1]*self.R[2])
+        #               + (self.P[2]*C[2] + self.P[3]*C[3])*(-self.P[0]*C[0]**2 - self.P[1]*C[0]*C[1]
+        #                                                    - self.P[2]*C[0]*C[1] - self.P[3]*C[1]**2 - self.R[0])
+        #               /(-self.P[0]*self.P[3]*C[0]**2*C[3]**2 + 2*self.P[0]*self.P[3]*C[0]*C[1]*C[2]*C[3]
+        #                 - self.P[0]*self.P[3]*C[1]**2*C[2]**2 - self.P[0]*C[0]**2*self.R[3]
+        #                 + self.P[0]*C[0]*C[2]*self.R[1] + self.P[0]*C[0]*C[2]*self.R[2] - self.P[0]*C[2]**2*self.R[0]
+        #                 + self.P[1]*self.P[2]*C[0]**2*C[3]**2 - 2*self.P[1]*self.P[2]*C[0]*C[1]*C[2]*C[3]
+        #                 + self.P[1]*self.P[2]*C[1]**2*C[2]**2 - self.P[1]*C[0]*C[1]*self.R[3]
+        #                 + self.P[1]*C[0]*C[3]*self.R[2] + self.P[1]*C[1]*C[2]*self.R[1] - self.P[1]*C[2]*C[3]*self.R[0]
+        #                 - self.P[2]*C[0]*C[1]*self.R[3] + self.P[2]*C[0]*C[3]*self.R[1] + self.P[2]*C[1]*C[2]*self.R[2]
+        #                 - self.P[2]*C[2]*C[3]*self.R[0] - self.P[3]*C[1]**2*self.R[3] + self.P[3]*C[1]*C[3]*self.R[1]
+        #                 + self.P[3]*C[1]*C[3]*self.R[2] - self.P[3]*C[3]**2*self.R[0] - self.R[0]*self.R[3]
+        #                 + self.R[1]*self.R[2])])
 
         # Update covariance matrix
 
@@ -114,16 +280,16 @@ class AHRS:
 
         return theta, phi
 
-    def common_trig_terms(self) -> Tuple[float, float, float, float]:
+    def common_trig_terms(self) -> Tuple[float, float, float, float, float]:
         # Compute common trigonometric terms
         sin_phi, cos_phi = np.sin(self.phi), np.cos(self.phi)
-        cos_theta, tan_theta = np.cos(self.theta), np.tan(self.theta)
+        sin_theta, cos_theta, tan_theta = np.sin(self.theta), np.cos(self.theta), np.tan(self.theta)
 
         # Check for division by zero error
         if cos_theta == 0:
             cos_theta = 1e-6
 
-        return sin_phi, cos_phi, cos_theta, tan_theta
+        return sin_phi, cos_phi, sin_theta, cos_theta, tan_theta
 
     def euler_integration(self, prev_state, derivative) -> float:
         return prev_state + derivative * self.t_sample
