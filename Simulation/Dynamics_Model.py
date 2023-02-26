@@ -18,12 +18,12 @@ class DynamicsModel:
 
         print(self)
 
-    def compute_moments(self, T: np.array) -> Tuple[float, float, float]:
+    def compute_moments(self, T: np.array, Q: np.array) -> Tuple[float, float, float]:
         L = float(np.sum(T * np.array([self.dimensions["d_y"], -self.dimensions["d_y"],
                                        -self.dimensions["d_y"], self.dimensions["d_y"]])))
         M = float(np.sum(T * np.array([self.dimensions["d_x"], -self.dimensions["d_x"],
                                        self.dimensions["d_x"], -self.dimensions["d_x"]])))
-        N = float(np.sum(np.array([0, 0, 0])))
+        N = float(np.sum(Q))
 
         return L, M, N
 
@@ -38,7 +38,7 @@ class DynamicsModel:
     def compute_motor_thrusts(self, motor_speeds: np.array) -> np.array:
         pass
 
-    def compute_state_derivative(self, X: np.array, T: np.array) -> np.array:
+    def compute_state_derivative(self, X: np.array, T: np.array, Q: np.array) -> np.array:
         # Apply suitable variable names
         u, v, w = X[0], X[1], X[2]
         p, q, r = X[3], X[4], X[5]
@@ -53,7 +53,7 @@ class DynamicsModel:
         F_z = -np.sum(T)
 
         # Compute Moments
-        L, M, N = self.compute_moments(T)
+        L, M, N = self.compute_moments(T, Q)
 
         # Define state derivative object
         X_dot = np.zeros(12)
@@ -85,11 +85,11 @@ class DynamicsModel:
 
         return X_dot
 
-    def rk4(self, X: TimeState, T: np.array, dt: float) -> Tuple[TimeState, StateDerivative]:
-        k1 = self.compute_state_derivative(X.state_vector, T)
-        k2 = self.compute_state_derivative(X.state_vector + k1 * dt / 2, T)
-        k3 = self.compute_state_derivative(X.state_vector + k2 * dt / 2, T)
-        k4 = self.compute_state_derivative(X.state_vector + k3 * dt, T)
+    def rk4(self, X: TimeState, T: np.array, Q: np.array, dt: float) -> Tuple[TimeState, StateDerivative]:
+        k1 = self.compute_state_derivative(X.state_vector, T, Q)
+        k2 = self.compute_state_derivative(X.state_vector + k1 * dt / 2, T, Q)
+        k3 = self.compute_state_derivative(X.state_vector + k2 * dt / 2, T, Q)
+        k4 = self.compute_state_derivative(X.state_vector + k3 * dt, T, Q)
 
         X_dot_calc = 1 / 6 * (k1 + 2 * k2 + 2 * k3 + k4)
         X_calc = X.state_vector + X_dot_calc * dt

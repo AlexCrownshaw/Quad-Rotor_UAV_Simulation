@@ -5,7 +5,7 @@ import numpy as np
 from Config_JSON.Config_Load_Functions import load_vehicle_properties, load_flight_path, load_sensor_config
 from General.UsefulFunctions import get_parent_path
 from FCS.Control_System import ControlSystem
-from Simulation.Thrust_Model import ThrustModel
+from Simulation.Thrust_Torque_Model import ThrustModel
 from Simulation.Dynamics_Model import DynamicsModel
 from Data_Handling.Data_Classes import TimeState, EstimateState
 from Data_Handling.Data_Processing import DynamicsData, ControlData, DataProcessor
@@ -21,8 +21,8 @@ gain_x = [-0.03, 0, 0.09]
 gain_y = [0.07, 0, -0.18]
 gain_z = [45e3, 17e3, -6.5e3]
 
-gain_yaw = [0, 0, 0]
-gain_pitch = [-400, 0, 140]
+gain_yaw = [10, 0, -40]
+gain_pitch = [-115, 0, 45]
 gain_roll = [115, 0, -45]
 
 # Sensor Variables
@@ -68,31 +68,38 @@ def main():
     dynamics_data = DynamicsData()
     dynamics_data.append_time_instance(t=0, X=X, T=np.array(4 * [0]), U=np.array(4 * [0]))
 
+    run_simulation(dynamics, thrust, control, sensors, estimation, X, G, dynamics_data)
+
+    control_data = ControlData(control.return_pid_data())
+    thrust_data, torque_data = thrust.return_thrust_data()
+    sensor_data = sensors.return_sensor_data()
+    estimation_data = estimation.return_data()
+
+    dp = DataProcessor(dynamics_data, control_data, thrust_data, torque_data, sensor_data, estimation_data, SAVE_PATH)
+    dp.plot_inertial(save=True)
+    dp.plot_thrust(show=False, save=True)
+    dp.plot_induced_velocity(show=False, save=True)
+    dp.plot_3d(show=False, save=True)
+    dp.plot_sensors(show=False, save=True)
+
+
+def run_simulation(dynamics: DynamicsModel, thrust: ThrustModel, control: ControlSystem, sensors: Sensors,
+                   estimation: StateEstimation, X: TimeState, G: EstimateState, dynamics_data: DynamicsData):
     for t in np.arange(t_delta, t_duration + t_delta, t_delta):
         t = round(t, 4)
 
         U = control.run_control_loop(X, G, t)
         T = thrust.solve_thrust(X, U)
-        X, X_dot = dynamics.rk4(X, T, t_delta)
+        Q = thrust.calculate_torque(T, U)
+        X, X_dot = dynamics.rk4(X, T, Q, t_delta)
         S = sensors.simulate_sensors(t, X, X_dot)
         G = estimation.compute_state_estimate(t, S)
 
         dynamics_data.append_time_instance(t, X, T, U)
 
         print("\nTime [s]: {}\nX [m]: {}\tY [m]: {}\tZ [m]: {}\nYaw [deg]: {}\tPitch [deg]: {}\tRoll [deg]: {}"
-              "\nU [RPM]: {}\n T [N]: {}".format(t, X.x, X.y, X.z, X.psi, X.theta, X.phi, U, T))
-
-    control_data = ControlData(control.return_pid_data())
-    thrust_data = thrust.return_thrust_data()
-    sensor_data = sensors.return_sensor_data()
-    estimation_data = estimation.return_data()
-
-    dp = DataProcessor(dynamics_data, control_data, thrust_data, sensor_data, estimation_data, SAVE_PATH)
-    dp.plot_inertial(save=True)
-    dp.plot_thrust(show=True, save=True)
-    dp.plot_induced_velocity(show=True, save=True)
-    dp.plot_3d(show=True, save=True)
-    dp.plot_sensors(show=True, save=True)
+              "\nU [RPM]: {}\n T [N]: {}".format(t, X.x, X.y, X.z, np.degrees(X.psi), np.degrees(X.theta),
+                                                 np.degrees(X.phi), U, T))
 
 
 if __name__ == "__main__":
