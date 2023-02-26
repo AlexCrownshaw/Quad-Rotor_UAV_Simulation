@@ -105,6 +105,17 @@ class ThrustData:
                                                                                v_i, V_prime, float(T)]
 
 
+class TorqueData:
+    column_headers = ["time", "Q_1", "Q_2", "Q_3", "Q_4", "Q_sum"]
+
+    def __init__(self):
+        self.df = pd.DataFrame(columns=self.column_headers)
+        self.df.loc[0] = [0] * len(self.column_headers)
+
+    def append_data(self, t, Q):
+        self.df.loc[len(self.df)] = [t, Q[0], Q[1], Q[2], Q[3], np.sum(Q)]
+
+
 class SensorData:
     column_headers = ["time", "acc_x", "acc_y", "acc_z", "acc_gn_x", "acc_gn_y", "acc_gn_z",
                       "gyro_x", "gyro_y", "gyro_z", "gyro_gn_x", "gyro_gn_y", "gyro_gn_z"]
@@ -119,7 +130,6 @@ class SensorData:
 
 
 class StateEstimationData:
-
     column_headers = ["time", "psi_rad", "theta_rad", "phi_rad", "psi_deg", "theta_deg", "phi_deg",
                       "acc_filt_x", "acc_filt_y", "acc_filt_z",
                       "gyro_filt_x", "gyro_filt_y", "gyro_filt_z"]
@@ -137,12 +147,13 @@ class StateEstimationData:
 
 class DataProcessor:
 
-    def __init__(self, dynamics: DynamicsData, control: ControlData, thrust_data: ThrustData, sensor_data: SensorData,
-                 estimation: StateEstimationData, save_path: str):
+    def __init__(self, dynamics: DynamicsData, control: ControlData, thrust_data: ThrustData, torque_data: TorqueData,
+                 sensor_data: SensorData, estimation: StateEstimationData, save_path: str):
 
         self.dynamics = dynamics.df
         self.control = control.df
         self.thrust_data = thrust_data.motor_data
+        self.torque_data = torque_data.df
         self.sensor_data = sensor_data.df
         self.estimate = estimation.df
 
@@ -150,6 +161,7 @@ class DataProcessor:
         os.mkdir(self.save_path)
         self.dynamics.to_csv(os.path.join(self.save_path, "Dynamics_Data.csv"))
         self.control.to_csv(os.path.join(self.save_path, "Control_Data.csv"))
+        self.torque_data.to_csv(os.path.join(self.save_path, "Torque_Data.csv"))
 
         motor_data_save_path = os.path.join(self.save_path, "Motor Thrust Data")
         os.mkdir(motor_data_save_path)
@@ -227,8 +239,8 @@ class DataProcessor:
         plt.setp(axes[2, 0], xlabel="Time [s]")
 
         axes[0, 1].plot(self.dynamics["t"], self.dynamics["psi_[deg]"], label="Output")
-        axes[0, 1].plot(self.dynamics.t, self.control.setpoint_yaw, label="Input")
-        axes[0, 1].plot(self.dynamics.t, self.estimate.psi_deg, label="State Estimate", alpha=0.7)
+        axes[0, 1].plot(self.dynamics.t, np.degrees(self.control.setpoint_yaw), label="Input")
+        # axes[0, 1].plot(self.dynamics.t, self.estimate.psi_deg, label="State Estimate", alpha=0.7)
         axes[0, 1].legend()
         plt.setp(axes[0, 1], title="Yaw")
         plt.setp(axes[0, 1], ylabel="yaw [deg]")

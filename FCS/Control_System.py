@@ -8,6 +8,8 @@ class ControlSystem:
 
     ROTATIONAL_PID_TUNE = False
     USE_DYNAMICS = True
+    ROTATE_OUTPUT_ARRAY = True
+    ROTATE_SET_POINTS = False
 
     max_rpm = 6000
     tau = 0  # PID derivative low pass filter factor
@@ -30,14 +32,22 @@ class ControlSystem:
 
     @staticmethod
     def motor_mixing(output_vector: np.array) -> np.array:
-        return np.array([output_vector[0] + output_vector[1] - output_vector[2] + output_vector[3],
-                         output_vector[0] + output_vector[1] + output_vector[2] - output_vector[3],
-                         output_vector[0] - output_vector[1] - output_vector[2] - output_vector[3],
-                         output_vector[0] - output_vector[1] + output_vector[2] + output_vector[3]])
+        U = np.array([output_vector[0] + output_vector[1] - output_vector[2] + output_vector[3],
+                      output_vector[0] + output_vector[1] + output_vector[2] - output_vector[3],
+                      output_vector[0] - output_vector[1] - output_vector[2] - output_vector[3],
+                      output_vector[0] - output_vector[1] + output_vector[2] + output_vector[3]])
+
+        return U
 
     def run_control_loop(self, X: TimeState, G: EstimateState, t: float) -> np.array:
         # Collect current maneuver from flight path
         control_inputs = self.control_inputs(t)
+
+        if self.ROTATE_SET_POINTS:
+            control_input_x = control_inputs[0]
+            control_input_y = control_inputs[1]
+            control_inputs[0] = control_input_x * np.cos(X.psi) - control_input_y * np.sin(X.psi)
+            control_inputs[1] = control_input_x * np.sin(X.psi) + control_input_y * np.cos(X.psi)
 
         # Check for use ideal dynamics output as PID input
         if self.USE_DYNAMICS:
@@ -66,7 +76,18 @@ class ControlSystem:
 
             output_yaw = self.pid_yaw.compute_pid(X.psi, control_inputs[3])
 
-        U = self.motor_mixing(np.array([output_z, output_yaw, output_pitch, output_roll]))
+        output_array = np.array([output_z, output_yaw, output_pitch, output_roll])
+
+        if self.ROTATE_OUTPUT_ARRAY:
+            output_array[1:3] = np.array(output_array[1:3]).dot(np.array([np.cos(X.psi), -np.sin(X.psi), np.sin(X.psi),
+                                                                          np.cos(X.psi)]).reshape(2, 2))
+
+            output_x = output_array[1]
+            output_y = output_array[2]
+            output_array[1] = output_x * np.cos(X.psi) - output_y * np.sin(X.psi)
+            output_array[2] = output_x * np.sin(X.psi) + output_y * np.cos(X.psi)
+
+        U = self.motor_mixing(output_array)
 
         # Fix motor speed to defined RPM bounds
         for U_index in range(len(U)):
@@ -77,22 +98,26 @@ class ControlSystem:
 
         return U
 
-    def control_inputs(self, t) -> np.array:
-        if len(self.upcoming_maneuvers) == 0:
-            return self.current_inputs
-        for maneuver in self.upcoming_maneuvers:
-            if float(maneuver["time"]) <= t:
+    def control_inputs(self, t):
+        try:
+            if self.upcoming_maneuvers[1]["time"] >= t:
                 self.upcoming_maneuvers = self.upcoming_maneuvers[1:]
-                if self.ROTATIONAL_PID_TUNE:
-                    self.current_inputs = np.array([maneuver["z"], np.radians(maneuver["yaw"]),
-                                                    np.radians(maneuver["pitch"]), np.radians(maneuver["roll"])])
-                else:
-                    self.current_inputs = np.array([maneuver["x"], maneuver["y"], maneuver["z"],
-                                                    np.radians(maneuver["yaw"])])
-            elif t < self.maneuvers[0]["time"]:
-                return np.array([0, 0, 0, 0])
+        except IndexError:
+            pass
 
-            return self.current_inputs
+        if self.ROTATIONAL_PID_TUNE:
+            current_inputs = np.array([self.upcoming_maneuvers[0]["z"], np.radians(self.upcoming_maneuvers[0]["yaw"]),
+                                       np.radians(self.upcoming_maneuvers[0]["pitch"]),
+                                       np.radians(self.upcoming_maneuvers[0]["roll"])])
+        else:
+            current_inputs = np.array([self.upcoming_maneuvers[0]["x"], self.upcoming_maneuvers[0]["y"],
+                                       self.upcoming_maneuvers[0]["z"],
+                                       np.radians(self.upcoming_maneuvers[0]["yaw"])])
+
+        if t < self.maneuvers[0]["time"]:
+            current_inputs = np.array([0, 0, 0, 0])
+
+        return current_inputs
 
     def return_pid_data(self) -> list:
         pid_data_list = []
