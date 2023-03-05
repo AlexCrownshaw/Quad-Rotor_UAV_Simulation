@@ -18,8 +18,8 @@ t_duration = 35
 t_delta = 0.01
 
 # PID Gain Values [Kp, Ki, Kd]
-# gain_x = [-0.03, 0, 0.09]
-gain_x = [-0.03, 0, 0.2]
+# gain_x = [-0.03, 0, 0.09]  # Damped response
+gain_x = [-0.03, 0, 0.2]  # Under damped response
 gain_y = [0.03, 0, -0.09]
 gain_z = [45e3, 17e3, -6.5e3]
 
@@ -80,12 +80,14 @@ def main():
     sensor_data = sensors.return_sensor_data()
     estimation_data = estimation.return_data()
 
-    dp = DataProcessor(dynamics_data, control_data, thrust_data, torque_data, sensor_data, estimation_data, SAVE_PATH)
+    dp = DataProcessor(dynamics_data, control_data, thrust_data, torque_data, sensor_data, estimation_data,
+                       disturbance.data, SAVE_PATH)
     dp.plot_inertial(save=True)
     dp.plot_thrust(show=True, save=True)
     dp.plot_induced_velocity(show=False, save=True)
     dp.plot_3d(show=False, save=True)
     dp.plot_sensors(show=False, save=True)
+    dp.plot_disturbance()
 
 
 def run_simulation(dynamics: DynamicsModel, thrust: ThrustModel, control: ControlSystem, sensors: Sensors,
