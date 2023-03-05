@@ -1,0 +1,59 @@
+{
+  "Initial_Conditions": {
+    "x": 0,
+    "y": 0,
+    "z": 0,
+    "yaw": 0,
+    "pitch": 0,
+    "roll": 0
+  },
+
+  "Maneuvers": [
+    {
+      "time": 0,
+      "x": 0,
+      "y": 0,
+      "z": 10,
+      "yaw": 0,
+      "pitch": 0,
+      "roll": 0
+    },
+    {
+      "time": 5,
+      "x": 10,
+      "y": 0,
+      "z": 10,
+      "yaw": 0,
+      "pitch": 0,
+      "roll": 0
+    },
+    {
+      "time": 10,
+      "x": 10,
+      "y": 10,
+      "z": 10,
+      "yaw": 0,
+      "pitch": 0,
+      "roll": 0
+    },
+    {
+      "time": 15,
+      "x": 0,
+      "y": 10,
+      "z": 10,
+      "yaw": 0,
+      "pitch": 0,
+      "roll": 0
+    },
+    {
+      "time": 25,
+      "x": 0,
+      "y": 0,
+      "z": 10,
+      "yaw": 0,
+      "pitch": 0,
+      "roll": 0
+    }
+  ]
+}
+

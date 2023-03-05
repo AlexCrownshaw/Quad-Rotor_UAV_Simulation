@@ -1,0 +1,18 @@
+{
+  "disturbances": [
+        {
+      "time": 0,
+      "duration": 2,
+      "F_x": 0,
+      "F_y": 0,
+      "F_z": 0
+    },
+    {
+      "time": 10,
+      "duration": 2,
+      "F_x": 0.1,
+      "F_y": 0,
+      "F_z": 0
+    }
+  ]
+}

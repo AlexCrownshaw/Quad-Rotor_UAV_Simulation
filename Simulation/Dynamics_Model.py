@@ -38,7 +38,7 @@ class DynamicsModel:
     def compute_motor_thrusts(self, motor_speeds: np.array) -> np.array:
         pass
 
-    def compute_state_derivative(self, X: np.array, T: np.array, Q: np.array) -> np.array:
+    def compute_state_derivative(self, X: np.array, T: np.array, Q: np.array, D: np.array) -> np.array:
         # Apply suitable variable names
         u, v, w = X[0], X[1], X[2]
         p, q, r = X[3], X[4], X[5]
@@ -78,6 +78,11 @@ class DynamicsModel:
                    (-sin_phi * cos_psi + cos_phi * sin_theta * sin_psi) * w  # y_dot
         X_dot[8] = -1 * (-sin_theta * u + sin_phi * cos_theta * v + cos_phi * cos_theta * w)  # z_dot
 
+        # Add inertial frame acceleration due to gravity.
+        X_dot[6] += D[0] / self.properties["mass"]
+        X_dot[7] += D[1] / self.properties["mass"]
+        X_dot[8] += D[2] / self.properties["mass"]
+
         # Compute rotational inertial acceleration
         X_dot[9] = (q * sin_phi + r * cos_phi) / cos_theta  # psi_dot
         X_dot[10] = q * cos_phi - r * sin_phi  # theta_dot
@@ -85,11 +90,11 @@ class DynamicsModel:
 
         return X_dot
 
-    def rk4(self, X: TimeState, T: np.array, Q: np.array, dt: float) -> Tuple[TimeState, StateDerivative]:
-        k1 = self.compute_state_derivative(X.state_vector, T, Q)
-        k2 = self.compute_state_derivative(X.state_vector + k1 * dt / 2, T, Q)
-        k3 = self.compute_state_derivative(X.state_vector + k2 * dt / 2, T, Q)
-        k4 = self.compute_state_derivative(X.state_vector + k3 * dt, T, Q)
+    def rk4(self, X: TimeState, T: np.array, Q: np.array, D: np.array, dt: float) -> Tuple[TimeState, StateDerivative]:
+        k1 = self.compute_state_derivative(X.state_vector, T, Q, D)
+        k2 = self.compute_state_derivative(X.state_vector + k1 * dt / 2, T, Q, D)
+        k3 = self.compute_state_derivative(X.state_vector + k2 * dt / 2, T, Q, D)
+        k4 = self.compute_state_derivative(X.state_vector + k3 * dt, T, Q, D)
 
         X_dot_calc = 1 / 6 * (k1 + 2 * k2 + 2 * k3 + k4)
         X_calc = X.state_vector + X_dot_calc * dt

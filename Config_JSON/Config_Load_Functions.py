@@ -19,3 +19,9 @@ def load_sensor_config(json_path: str) -> Tuple[dict, dict, dict]:
     with open(json_path) as json_file:
         json_object = json.load(json_file)
         return json_object["acc"], json_object["gyro"], json_object["mag"]
+
+
+def load_disturbances(json_path: str) -> list:
+    with open(json_path) as json_file:
+        json_object = json.load(json_file)
+        return json_object["disturbances"]
