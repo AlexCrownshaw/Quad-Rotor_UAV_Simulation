@@ -8,7 +8,7 @@ class ControlSystem:
 
     ROTATIONAL_PID_TUNE = False
     USE_DYNAMICS = True
-    ROTATE_OUTPUT_ARRAY = True
+    ROTATE_OUTPUT_ARRAY = False
     ROTATE_SET_POINTS = False
 
     max_rpm = 6000
@@ -40,6 +40,7 @@ class ControlSystem:
         return U
 
     def run_control_loop(self, X: TimeState, G: EstimateState, t: float) -> np.array:
+
         # Collect current maneuver from flight path
         control_inputs = self.control_inputs(t)
 
@@ -100,7 +101,7 @@ class ControlSystem:
 
     def control_inputs(self, t):
         try:
-            if self.upcoming_maneuvers[1]["time"] >= t:
+            if self.upcoming_maneuvers[1]["time"] <= t:
                 self.upcoming_maneuvers = self.upcoming_maneuvers[1:]
         except IndexError:
             pass
