@@ -148,7 +148,7 @@ class StateEstimationData:
 class DataProcessor:
 
     def __init__(self, dynamics: DynamicsData, control: ControlData, thrust_data: ThrustData, torque_data: TorqueData,
-                 sensor_data: SensorData, estimation: StateEstimationData, save_path: str):
+                 sensor_data: SensorData, estimation: StateEstimationData, disturbance: pd.DataFrame, save_path: str):
 
         self.dynamics = dynamics.df
         self.control = control.df
@@ -156,12 +156,14 @@ class DataProcessor:
         self.torque_data = torque_data.df
         self.sensor_data = sensor_data.df
         self.estimate = estimation.df
+        self.disturbance = disturbance
 
         self.save_path = os.path.join(save_path, str(time.strftime("%d-%m-%y %H-%M-%S")))
         os.mkdir(self.save_path)
         self.dynamics.to_csv(os.path.join(self.save_path, "Dynamics_Data.csv"))
         self.control.to_csv(os.path.join(self.save_path, "Control_Data.csv"))
         self.torque_data.to_csv(os.path.join(self.save_path, "Torque_Data.csv"))
+        self.disturbance.to_csv(os.path.join(self.save_path, "Disturbance_Data.csv"))
 
         motor_data_save_path = os.path.join(self.save_path, "Motor Thrust Data")
         os.mkdir(motor_data_save_path)
@@ -362,6 +364,23 @@ class DataProcessor:
 
         if save:
             self.save_plot("Sensor Data")
+        if show:
+            plt.show()
+        plt.close()
+
+    def plot_disturbance(self, show=True, save=True):
+
+        fig, axes = plt.subplots(2, 1, figsize=(15, 10))
+        plt.subplots_adjust(wspace=0.2, hspace=0.4)
+
+        axes[0].plot(self.dynamics.t, self.dynamics.x, label="Gaussian Noise")
+
+        plt.rcParams['axes.grid'] = False
+        ax1 = axes[0].twinx()
+        ax1.plot(self.disturbance.t, self.disturbance.F_x, color="o")
+
+        if save:
+            self.save_plot("Disturbance Response [X]")
         if show:
             plt.show()
         plt.close()
